@@ -3,13 +3,51 @@
     <div class="inner">
       <div v-if="currentPage === 'before'">
         <div class="input-modal">
-          <h2>プレイヤー名を入力してください</h2>
-          <div v-for="(player, index) in players" :key="index" class="player-input">
-            <input type="text" v-model="player.name" placeholder="名前を入力">
-            <button @click="removePlayer(index)">x</button>
+          <h2 v-if="!roomOption">ルームを選択してください</h2>
+          
+
+          <div v-if="!roomOption">
+            <button @click="roomOption = 'create'" class="room-button">ルームを作成</button>
+            <hr>
+            <button @click="roomOption = 'join'; retriveCode()" class="room-button">ルームに参加</button>
           </div>
-          <button v-if="players.length < maxPlayerNumber" @click="addPlayer" class="add-button">+</button>
-          <button v-if="readyToPlay" @click="goToGamePage" class="start-button">{{players.length}}人で遊ぶ</button>
+
+          <div v-if="roomOption === 'create'">
+            <template v-if="!roomCode">
+              <h2>プレイヤー名を入力してください</h2>
+              <div class="player-input">
+                <input type="text" v-model="username" placeholder="名前を入力">
+              </div>
+              <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button>
+              <button @click="roomOption = null" class="start-button" style="background-color: crimson;">戻る</button>
+              <button v-if="readyToPlay" @click="createARoom()" class="start-button">部屋を作る</button>
+            </template>
+            <template v-else>
+              <h2>ようこそ {{username}}さん！</h2>
+              {{ roomCode }}で待機中
+              <!-- <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button> -->
+              <button v-if="players.length >= 2" @click="goToGamePage()" class="start-button">部屋をクローズ</button>
+            </template>
+            
+          </div>
+
+          <div v-if="roomOption === 'join'">
+            <template v-if="!roomCode">
+              <div class="player-input">
+                <input type="text" v-model="username" placeholder="名前を入力">
+              </div>
+              <div class="player-input">
+                <input type="number" v-model="tempRoomcode" placeholder="ルームコードを入力">
+              </div>
+              <button @click="roomOption = null" class="start-button" style="background-color: crimson;">戻る</button>
+              <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay" @click="joinARoom()" class="start-button">参加する</button>
+            </template>
+            <template v-else>
+              <h2>ようこそ {{username}}さん！</h2>
+              {{ roomCode }}で待機中
+              {{players}}
+            </template>
+          </div>
         </div>
       </div>
 
@@ -56,7 +94,7 @@
                       />
                     </template>
                     <div class="action-buttons-container"  :style="player.name !== currentPlayer.name ? { transform: 'translate(-50%, 150%)' } : {}">
-                      <button @click="passToNext()" :class="{ 'disable-button': currentPlayerPickedHands.length > 0 }">パス</button>
+                      <button @click="passToNext()" :class="{ 'disable-button': currentPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
                       <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': currentPlayerPickedHands.length == 0 }">キャンセル</button>
                       <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
                     </div>
@@ -67,12 +105,19 @@
           </template>
         </div>
 
+        <div v-if="developingMode">
+          <span>Stairs:<button @click="isStairsGoing = !isStairsGoing">{{isStairsGoing}}</button></span><br>
+          <span>revolution:<button @click="isRevolutionGoing = !isRevolutionGoing">{{isRevolutionGoing}}</button></span><br>
+        </div>
+
       </div>
     </div>
   </div>
 </template>
 
 <script>
+
+import db from './firebase.js';
 
 import { randomNames } from './name.js';
 import PlayerInfo from './PlayerInfo.vue';
@@ -85,9 +130,9 @@ export default {
   },
   data() {
     return {
-      developingMode: true,
+      developingMode: false,
 
-      defaultNumber: 3,
+      defaultNumber: 2,
       maxPlayerNumber: 6,
       randomNames,
 
@@ -100,20 +145,27 @@ export default {
       deck:[],
       lastSubmitBy: null,
 
+      isRevolutionGoing: false,
+      isStairsGoing: false,
+
+      // -------
+      roomOption: null,
+      roomCode: null,
+      tempRoomcode: null,
+
+      username: null,
+      winner: null,
+
+
 
     };
   },
   computed: {
     readyToPlay() {
       const namePattern = /^[^\s!@#$%^&*(),.?":{}|<>]+$/;
-      const uniqueNames = new Set(this.players.map(player => player.name.trim()));
-      
-      return this.players.length >= 2 &&
-        this.players.length <= this.maxPlayerNumber &&
-        uniqueNames.size === this.players.length &&
-        this.players.every(player => 
-          player.name.trim() !== '' && namePattern.test(player.name)
-      );
+
+      // Check if the username is valid
+      return namePattern.test(this.username) && this.username?.trim() !== '';
     },
     currentPlayer() {
       return this.players[this.currentPlayerIndex];
@@ -169,7 +221,13 @@ export default {
       return Object.values(grouped).sort((a, b) =>  a[0].updatedAt - b[0].updatedAt);
     },
     previousCards() {
-      return this.publicPile.filter(card => card.isPreviousCard);
+      return this.publicPile
+        .filter(card => card.isPreviousCard)
+        .sort((a, b) => {
+          const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
+          const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
+          return valueA - valueB;
+        });
     },
     playerHands() {
       return playerName => this.deck
@@ -189,11 +247,15 @@ export default {
       return this.deck
         .filter(card => card.location === this.currentPlayer.name)
         .sort((a, b) => {
-          // First, sort by value
-          const valueComparison = a.value - b.value;
+          const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
+          const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
+
+          // First, sort by value or revolutionValue
+          const valueComparison = valueA - valueB;
           if (valueComparison !== 0) {
             return valueComparison;
           }
+
           // Then, sort by suit
           const suitOrder = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
           return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
@@ -203,11 +265,15 @@ export default {
       return this.deck
         .filter(card => card.location === this.currentPlayer.name && card.isPicked)
         .sort((a, b) => {
-          // First, sort by value
-          const valueComparison = a.value - b.value;
+          const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
+          const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
+
+          // First, sort by value or revolutionValue
+          const valueComparison = valueA - valueB;
           if (valueComparison !== 0) {
             return valueComparison;
           }
+
           // Then, sort by suit
           const suitOrder = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
           return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
@@ -215,38 +281,108 @@ export default {
     },
     
     readyToSubmit() {
-      // Check if the player's picked hands are valid
 
       // If the player's picked hands are empty, return false
       if (this.currentPlayerPickedHands.length === 0) return false;
 
-      // If the public pile is empty, return true
-      if (this.publicPile.length === 0) return true;
+      // --------------------------------------------------------------------
 
-      // Get the last played card(s) in the public pile
-      const topPileCards = this.publicPile.slice(-this.currentPlayerPickedHands.length);
+      // If the public pile is empty
+      if (this.publicPile.length === 0) {
 
-      // Check if the number of picked cards matches the top pile cards
-      if (this.currentPlayerPickedHands.length !== topPileCards.length) return false;
+        // Single card play
+        if (this.currentPlayerPickedHands.length === 1) return true;
 
-      // Check if all picked cards are of the same rank
-      const pickedRanks = new Set(this.currentPlayerPickedHands.map(card => card.rank));
-      if (pickedRanks.size !== 1) return false;
+        // Check if all cards are the same value
+        const sameCardCheck = this.currentPlayerPickedHands.every(
+            card => card.value === this.currentPlayerPickedHands[0].value
+        );
+        if (sameCardCheck) return true;
 
-      // Check if all picked cards are higher than the corresponding top pile cards
-      for (let i = 0; i < this.currentPlayerPickedHands.length; i++) {
-        if (this.currentPlayerPickedHands[i].value <= topPileCards[i].value) {
-          return false;
+        // Check for sequence (階段)
+        if(this.currentPlayerPickedHands.length < 3) return false
+        const tempSuit = this.currentPlayerPickedHands[0].suit;
+        let tempValue = this.currentPlayerPickedHands[0].value - 1;
+
+        for (let card of this.currentPlayerPickedHands) {
+          if (tempSuit !== card.suit || card.value !== ++tempValue) {
+              return false;
+          }
         }
+
+        return true;
       }
 
-      // Check for revolution
-      const revolution = this.currentPlayerPickedHands.length === 4 && pickedRanks.size === 1;
-      if (revolution) {
-        // Handle revolution logic, if necessary
+      // --------------------------------------------------------------------
+      let wasPreviousRevolution = this.previousCards.length === 4 && this.previousCards.every(card => card.value === this.previousCards[0].value);
+
+      // Stairs (isStairsGoing)
+      if (this.isStairsGoing) {
+          // Check if current cards form a sequence (階段) and length is not less than the previous cards
+          if (this.currentPlayerPickedHands.length < this.previousCards.length && !wasPreviousRevolution && !wasPreviousRevolution) return false;
+
+          // Check if the lowest number in the current set is higher than the lowest number in the previous set
+          const currentLowestValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue : this.currentPlayerPickedHands[0].value;
+          const previousLowestValue = this.isRevolutionGoing ? this.previousCards[0].revolutionValue : this.previousCards[0].value;
+          
+          // Handle the revolution case
+          if (this.isRevolutionGoing) {
+              if (currentLowestValue >= previousLowestValue) return false;
+          } else {
+              if (currentLowestValue <= previousLowestValue) return false;
+          }
+
+          const tempSuit = this.currentPlayerPickedHands[0].suit;
+          let tempValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue - 1 : this.currentPlayerPickedHands[0].value - 1;
+
+          for (let card of this.currentPlayerPickedHands) {
+              const cardValue = this.isRevolutionGoing ? card.revolutionValue : card.value;
+              if (tempSuit !== card.suit || cardValue !== ++tempValue) {
+                  return false;
+              }
+          }
+
+          return true;
       }
 
-      // If all checks pass, return true
+      // --------------------------------------------------------------------
+
+      // Default regular checking
+
+      // Check stairs
+      if (this.currentPlayerPickedHands.length >= this.previousCards.length && this.currentPlayerPickedHands.length > 3) {
+          let stairCheck = true;
+          const tempSuit = this.currentPlayerPickedHands[0].suit;
+          let tempValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue + 1 : this.currentPlayerPickedHands[0].value - 1;
+
+          for (let card of this.currentPlayerPickedHands) {
+              const cardValue = this.isRevolutionGoing ? card.revolutionValue : card.value;
+              if (tempSuit !== card.suit || (this.isRevolutionGoing ? cardValue !== --tempValue : cardValue !== ++tempValue)) {
+                  stairCheck = false;
+                  break;
+              }
+          }
+
+          if (stairCheck) return true;
+      }
+
+
+
+      // Check if all cards are the same value
+      const sameCardCheck = this.currentPlayerPickedHands.every(card => card.value === this.currentPlayerPickedHands[0].value);
+      if (!sameCardCheck) return false;
+
+      // Check if the length matches the previous cards
+      if (this.currentPlayerPickedHands.length < this.previousCards.length && !wasPreviousRevolution) return false;
+
+      // Check if the current cards' value is higher (or lower in revolution) than the previous cards
+      const previousValue = this.isRevolutionGoing ? this.previousCards[0].revolutionValue : this.previousCards[0].value;
+      const currentValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue : this.currentPlayerPickedHands[0].value;
+
+      if (currentValue <= previousValue) {
+        return false;
+      }
+
       return true;
     },
 
@@ -282,19 +418,19 @@ export default {
       // Define the suits and ranks with corresponding numbers
       const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
       const ranks = [
-        { rank: '2', value: 2 },
-        { rank: '3', value: 3 },
-        { rank: '4', value: 4 },
-        { rank: '5', value: 5 },
-        { rank: '6', value: 6 },
-        { rank: '7', value: 7 },
-        { rank: '8', value: 8 },
-        { rank: '9', value: 9 },
-        { rank: '10', value: 10 },
-        { rank: 'J', value: 11 },
-        { rank: 'Q', value: 12 },
-        { rank: 'K', value: 13 },
-        { rank: 'A', value: 14 }
+        { rank: '3', value: 3, revolutionValue: 15 },
+        { rank: '4', value: 4, revolutionValue: 14 },
+        { rank: '5', value: 5, revolutionValue: 13 },
+        { rank: '6', value: 6, revolutionValue: 12 },
+        { rank: '7', value: 7, revolutionValue: 11 },
+        { rank: '8', value: 8, revolutionValue: 10 },
+        { rank: '9', value: 9, revolutionValue: 9 },
+        { rank: '10', value: 10, revolutionValue: 8 },
+        { rank: 'J', value: 11, revolutionValue: 7 },
+        { rank: 'Q', value: 12, revolutionValue: 6 },
+        { rank: 'K', value: 13, revolutionValue: 5 },
+        { rank: 'A', value: 14, revolutionValue: 4 },
+        { rank: '2', value: 15, revolutionValue: 3 },
       ];
 
       // Initialize the deck with standard cards
@@ -302,16 +438,17 @@ export default {
       let id = 1;
       for (let suit of suits) {
         for (let rank of ranks) {
-          this.deck.push({ id: id++, suit, rank: rank.rank, value: rank.value , location: 'drawPile',isPicked: false,});
+          this.deck.push({ id: id++, suit, rank: rank.rank, value: rank.value , revolutionValue: rank.revolutionValue, location: 'drawPile',isPicked: false,});
         }
       }
 
-      // Add two Jokers
-      this.deck.push({ id: id++, suit: 'Joker', rank: 'Joker', value: 15, location: 'drawPile',isPicked: false });
-      this.deck.push({ id: id++, suit: 'Joker', rank: 'Joker', value: 15, location: 'drawPile',isPicked: false });
+      // Add one Joker
+      // this.deck.push({ id: id++, suit: 'Joker', rank: 'Joker', value: 15, location: 'drawPile',isPicked: false });
 
       // Optional: shuffle the deck
       this.shuffleArray(this.deck);
+
+      console.log(this.deck)
     },
     async distributeCards() {
       while (this.drawPile.length > 0) {
@@ -377,18 +514,19 @@ export default {
           return {
             left: `50%`,
             top: `0%`,
-            transform: `translateX(-50%) translateY(-120%)`
+            zIndex: 100,
+            transform: `translateY(-120%)`
           };
         }
 
         // Calculate the step percentage for picked cards to fit under 80%
-        const pickedStep = 70 / (pickedTotal - 1);
+        const pickedStep = 55 / (pickedTotal - 1);
         const pickedPosition = pickedStep * pickedIndex;
 
         return {
-          left: `${30 + pickedPosition}%`, // Start from 20% and use the next 80%
+          left: `${35 + pickedPosition}%`, // Start from 20% and use the next 80%
           top: `0%`, // Adjust as needed for vertical position
-          transform: `translateX(-${pickedPosition + 30}%) translateY(-120%)`
+          transform: `translateX(-${pickedPosition + 40}%) translateY(-120%)`
         };
       }
 
@@ -483,40 +621,67 @@ export default {
       if(this.currentPlayer.name == this.lastSubmitBy) this.clearPublicPile()
     },
     clearPublicPile(){
+      this.isStairsGoing = false
       this.publicPile.forEach(card => {
         card.location = 'trash';
       });
     },
-    submit(){
+    async submit(){
       this.lastSubmitBy = this.currentPlayer.name
       const currentTime = Date.now();
+
+      let tempRevoultion = false
+      
+      if(this.currentPlayerPickedHands.length == 4){
+        console.log('rev check')
+        let flag = true
+        const tempValue = this.currentPlayerHands[0]
+        for(let card of this.currentPlayerPickedHands){
+          if(card.value == tempValue) flag = false
+        } 
+        
+        if(flag){
+          tempRevoultion = true
+          this.isRevolutionGoing = true
+        }
+      }
+
+      // Check if the currentPlayerPickedHands has more than one distinct value
+      const distinctValues = new Set(this.currentPlayerPickedHands.map(card => card.value));
+      if (this.currentPlayerPickedHands.length > 2 && distinctValues.size > 1 && !tempRevoultion) {
+        this.isStairsGoing = true;
+      }
 
       this.currentPlayerPickedHands.forEach(card => {
         card.isPicked = false
         card.location = 'publicArea'
         card.updatedAt = currentTime;
-        const maxDeg = 20;
+        const maxDeg = 15;
 
         // Generate a random integer between minDeg and maxDeg
         const randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
 
         card.rotation = randomRotation
 
-        const verticalPosition = Math.floor(Math.random() * 31);
-        const horizontalPosition = Math.floor(Math.random() * 31);
-
-        card.verticalPosition = Math.random() < 0.5 ? `top: ${verticalPosition}%` : `bottom: ${verticalPosition}%`;
-        card.horizontalPosition = Math.random() < 0.5 ? `left: ${horizontalPosition}%` : `right: ${horizontalPosition}%`;
+        card.verticalPosition = Math.floor(Math.random() * 31);
+        card.horizontalPosition = Math.floor(Math.random() * 31);
       });
 
+      
+
       // console.log(this.publicPile)
+
+      if(this.currentPlayerHands.length == 0) {
+        await this.sleep(500)
+        alert(`the game is over\n\n${this.currentPlayer.name} won!`)
+      }
 
       this.goToNextPlayer()
     },
     getCardStyle(card) {
       return `
-        ${card.verticalPosition};
-        ${card.horizontalPosition};
+        top:${card.verticalPosition}%;
+        left:${card.horizontalPosition}%;
         transform: rotate(${card.rotation}deg)
       `;
     },
@@ -534,6 +699,81 @@ export default {
       };
     },
 
+    // -------------
+    randomName(){
+      this.username = this.getRandomName();
+    },
+    retriveCode(){
+      console.log(localStorage.getItem('latestRoomCode') )
+      this.tempRoomcode = localStorage.getItem('latestRoomCode') || 'No room code found'
+    },
+    async createARoom() {
+      if (this.roomCode) return;
+      console.log('hello');
+
+      let isUnique = false;
+
+      // Generate a unique room code
+      while (!isUnique) {
+        this.tempRoomcode = Math.floor(10000 + Math.random() * 90000);
+        const docRef = db.collection('rooms').doc(`${this.tempRoomcode}`);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+          isUnique = true;
+        }
+      }
+
+      // console.log(this.roomCode)
+      this.roomCode = this.tempRoomcode
+      localStorage.setItem('latestRoomCode', this.roomCode)
+      
+
+      this.players.push({name:this.username, isHost:true})
+      localStorage.userName = this.userName
+
+      // console.log('sending data')
+      const ref = db.collection('rooms')
+      ref.doc(`${this.roomCode}`).set({
+        winner: this.winner,
+        hostName: this.username,
+        // detailData: JSON.stringify([{games: [{waitingList: [],gameStatus: 'waiting'}], players: this.players, }]),
+        detailData: JSON.stringify([{ games: [{ waitingList: [], gameStatus: 'waiting' }], players: this.players }]),
+
+      })
+      
+      
+      this.onlineStatus = 'waiting'
+
+      console.log('done create: ' + this.roomCode)
+    },
+
+    async joinARoom() {
+      console.log('trying to join ' + this.tempRoomcode);
+
+      const docRef = db.collection('rooms').doc(`${this.tempRoomcode}`);
+
+      try {
+        const doc = await docRef.get();
+        if (doc.exists) {
+          console.log(doc.data())
+          const detailData = JSON.parse(doc.data().detailData);
+          console.log(detailData)
+          this.players = detailData[0].players;
+          if (!this.players.includes(this.username)) this.players.push({name:this.username, isHost:false});
+          this.roomCode = this.tempRoomcode
+
+          await docRef.update({
+            players: JSON.stringify(this.players),
+          });
+          // this.reciveTheData();
+        } else {
+          console.log('No such document!');
+        }
+      } catch (error) {
+        console.log('Error getting document:', error);
+      }
+    },
+
   },
   async mounted(){
     console.clear()
@@ -541,6 +781,8 @@ export default {
     this.deck = []
     this.lastSubmitBy = null
     this.currentPlayerIndex = 0
+
+    this.username = this.getRandomName();
 
     if(this.developingMode){
       for (let i = 0; i < this.defaultNumber; i++) {
@@ -620,8 +862,14 @@ export default {
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 
+    width: 85%;
     max-width: 400px;
     margin: auto;
+
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
   }
   h2 {
     margin-top: 0;
@@ -722,6 +970,8 @@ export default {
 
     background: #F9F9FB;
     color: black;
+
+    transition: all .3s ease-in-out;
   }
 
   .gameCard{
