@@ -25,8 +25,9 @@
             <template v-else>
               <h2>ようこそ {{username}}さん！</h2>
               {{ roomCode }}で待機中
+              {{ players }}
               <!-- <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button> -->
-              <button v-if="players.length >= 2" @click="goToGamePage()" class="start-button">部屋をクローズ</button>
+              <button v-if="players.length >= 2" @click="closeTheRoom()" class="start-button">部屋をクローズ</button>
             </template>
             
           </div>
@@ -152,6 +153,7 @@ export default {
       roomOption: null,
       roomCode: null,
       tempRoomcode: null,
+      generalData: null,
 
       username: null,
       winner: null,
@@ -414,7 +416,7 @@ export default {
     },
     
     initializeDeck() {
-      this.deck =[]
+      this.deck = []
       // Define the suits and ranks with corresponding numbers
       const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
       const ranks = [
@@ -458,6 +460,7 @@ export default {
           if (card) {
             // console.log(`Distributing ${card.id} to ${player.name}`);
             card.location = player.name;
+            this.updatingData()
             await this.sleep(20); // Add delay if needed
           }
         }
@@ -619,6 +622,7 @@ export default {
     passToNext(){
       this.goToNextPlayer()
       if(this.currentPlayer.name == this.lastSubmitBy) this.clearPublicPile()
+      this.updatingData()
     },
     clearPublicPile(){
       this.isStairsGoing = false
@@ -675,8 +679,11 @@ export default {
         await this.sleep(500)
         alert(`the game is over\n\n${this.currentPlayer.name} won!`)
       }
-
+      
       this.goToNextPlayer()
+
+      this.updatingData()
+
     },
     getCardStyle(card) {
       return `
@@ -704,12 +711,10 @@ export default {
       this.username = this.getRandomName();
     },
     retriveCode(){
-      console.log(localStorage.getItem('latestRoomCode') )
       this.tempRoomcode = localStorage.getItem('latestRoomCode') || 'No room code found'
     },
     async createARoom() {
       if (this.roomCode) return;
-      console.log('hello');
 
       let isUnique = false;
 
@@ -735,43 +740,110 @@ export default {
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).set({
         winner: this.winner,
-        hostName: this.username,
-        // detailData: JSON.stringify([{games: [{waitingList: [],gameStatus: 'waiting'}], players: this.players, }]),
-        detailData: JSON.stringify([{ games: [{ waitingList: [], gameStatus: 'waiting' }], players: this.players }]),
+        games: JSON.stringify([{ gameStatus: 'waiting' }]),
+        players: this.players,
+        onlineStatus: 'waiting',
+        deck: this.deck,
 
       })
       
-      
-      this.onlineStatus = 'waiting'
-
-      console.log('done create: ' + this.roomCode)
+      // this.onlineStatus = 'waiting'
+      this.reciveTheData()
     },
 
     async joinARoom() {
-      console.log('trying to join ' + this.tempRoomcode);
 
       const docRef = db.collection('rooms').doc(`${this.tempRoomcode}`);
 
       try {
         const doc = await docRef.get();
         if (doc.exists) {
-          console.log(doc.data())
-          const detailData = JSON.parse(doc.data().detailData);
-          console.log(detailData)
-          this.players = detailData[0].players;
+
+          this.players = doc.data().players;
+          this.onlineStatus = doc.data().players;
+
           if (!this.players.includes(this.username)) this.players.push({name:this.username, isHost:false});
           this.roomCode = this.tempRoomcode
 
           await docRef.update({
-            players: JSON.stringify(this.players),
+            players: this.players,
           });
-          // this.reciveTheData();
+          this.reciveTheData();
         } else {
           console.log('No such document!');
         }
       } catch (error) {
         console.log('Error getting document:', error);
       }
+    },
+
+    reciveTheData(){
+      
+      db.collection("rooms").doc(`${this.roomCode}`)
+      .onSnapshot((doc) => {
+
+        this.generalData = doc.data()
+        
+        // joining room and wait until it closes
+        // if(this.currentPage == 'before'){
+        this.onlineStatus = doc.data()?.onlineStatus
+        this.players = doc.data().players
+        
+
+        if(this.onlineStatus == 'playing') {
+          this.deck = doc.data().deck
+          this.lastSubmitBy = doc.data()?.lastSubmitBy
+          this.currentPlayerIndex = doc.data().currentPlayerIndex
+          this.currentPage = 'game'
+        }
+        
+        // if(!this.players.includes(this.username)){
+        //   this.joinARoom()
+        //   return 
+        // }
+
+        
+
+      
+        
+      
+      })
+    },
+
+    async closeTheRoom(){
+      if(this.players.length <2) return
+
+      this.shuffleArray(this.players)
+      // Logic to start the game
+
+      // Reset the current player index
+      this.currentPlayerIndex = 0;
+      this.currentPage = 'game';
+
+      this.initializeDeck()
+
+      this.detailData =[{gameStatus: 'ready'}]
+      const ref = db.collection('rooms')
+      ref.doc(`${this.roomCode}`).update({
+        deck: this.deck,
+        players: this.players,
+        onlineStatus: 'playing',
+        currentPlayerIndex: 0,
+      })
+
+      await this.distributeCards()
+
+      console.log('done closing room ----------------')
+
+    },
+    updatingData(){
+      const ref = db.collection('rooms')
+      ref.doc(`${this.roomCode}`).update({
+        lastSubmitBy: this.lastSubmitBy,
+        deck:this.deck,
+        currentPlayerIndex: this.currentPlayerIndex,
+      })
+
     },
 
   },
