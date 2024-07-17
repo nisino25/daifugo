@@ -1,6 +1,7 @@
 <template>
   <div id="app">
     <div class="inner">
+
       <div v-if="currentPage === 'before'">
         <div class="input-modal">
           <h2 v-if="!roomOption">ルームを選択してください</h2>
@@ -12,57 +13,46 @@
             <button @click="roomOption = 'join'; retriveCode()" class="room-button">ルームに参加</button>
           </div>
 
-          <div v-if="roomOption === 'create'">
-            <template v-if="!roomCode">
-              <h2>プレイヤー名を入力してください</h2>
+          <template v-if="roomOption && !roomCode">
+            <h2>プレイヤー名を入力してください</h2>
               <div class="player-input">
                 <input type="text" v-model="username" placeholder="名前を入力">
+              </div>
+              <div class="player-input" v-if="roomOption === 'join'">
+                <input type="number" v-model="tempRoomcode" placeholder="ルームコードを入力">
               </div>
               <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button>
               <button @click="roomOption = null" class="start-button" style="background-color: crimson;">戻る</button>
-              <button v-if="readyToPlay" @click="createARoom()" class="start-button">部屋を作る</button>
-            </template>
-            <template v-else>
-              <h2>ようこそ {{username}}さん！</h2>
-              {{ roomCode }}で待機中
-              {{ players }}
-              <!-- <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button> -->
-              <button v-if="players.length >= 2" @click="closeTheRoom()" class="start-button">部屋をクローズ</button>
-            </template>
-            
-          </div>
+              <button v-if="readyToPlay && roomOption === 'create'" @click="createARoom()" class="start-button">部屋を作る</button>
+              <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay && roomOption === 'join'" @click="joinARoom()" class="start-button">参加する</button>
+          </template>
 
-          <div v-if="roomOption === 'join'">
-            <template v-if="!roomCode">
-              <div class="player-input">
-                <input type="text" v-model="username" placeholder="名前を入力">
-              </div>
-              <div class="player-input">
-                <input type="number" v-model="tempRoomcode" placeholder="ルームコードを入力">
-              </div>
-              <button @click="roomOption = null" class="start-button" style="background-color: crimson;">戻る</button>
-              <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay" @click="joinARoom()" class="start-button">参加する</button>
+          <template v-if="roomOption && roomCode">
+            <h2>ようこそ！ {{ username }}さん</h2>
+            <p>{{ roomCode }}で待機中。</p>
+            <hr>
+            <template v-for="(player, index) in players" :key="index">
+              <p>{{index +1}}.{{ player.name }}</p>
             </template>
-            <template v-else>
-              <h2>ようこそ {{username}}さん！</h2>
-              {{ roomCode }}で待機中
-              {{players}}
-            </template>
-          </div>
+            <button v-if="players?.length >= 2 && yourPlayer.isHost"  @click="closeTheRoom()" class="start-button">部屋をクローズ</button>
+          </template>
         </div>
       </div>
 
       <div v-if="currentPage === 'game'">
-        <div class="screens-cotainer">
-          <template v-for="(player, index) in players" :key="index">
-            <div class="main-container">
+        <div class="main-container">
               <div class="area-container">
-                <div class="others-area">Chat&nbsp;&nbsp;<i class="fa-regular fa-comment"></i> <span>Settings&nbsp;&nbsp;<i class="fa-solid fa-gear"></i></span></div>
+                <div class="others-area">
+                  <div class="inner">
+                    <span>{{ username }}</span>
+                    <span>{{ roomCode }}</span>
+                  </div>
+                </div>
                 <div class="other-players-area">
-                  <template v-for="otherPlayer in getOtherPlayers(player.name)" :key="otherPlayer.name">                  
+                  <template v-for="otherPlayer in getOtherPlayers()" :key="otherPlayer.name">                  
                     <PlayerInfo
                       :player="otherPlayer"
-                      :isActive="otherPlayer.name === currentPlayer.name"
+                      :isActive="otherPlayer.name === yourPlayer.name"
                       :hand="playerHands(otherPlayer.name)"
                     />
                     
@@ -73,7 +63,7 @@
                     <template v-for="(group, groupIndex) in groupedPublicPile" :key="groupIndex">
                       <div class="timestamp-group" :style="getCardStyle(group[0])" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
                         <template v-for="(card,cardIndex) in group" :key="card.id">
-                          <GameCard :card="card" @click="pickCard(player.name, card)" :style="getGap(cardIndex,group)" />
+                          <GameCard :card="card" @click="pickCard(yourPlayer.name, card)" :style="getGap(cardIndex,group)" />
                         </template>
                       </div>
                     </template>
@@ -82,29 +72,28 @@
 
                 <div class="personal-area">
                   <PlayerInfo
-                    :player="player"
-                    :isActive="player.name === currentPlayer.name"
-                    :hand="playerHands(player.name)"
+                    :player="yourPlayer"
+                    :isActive="yourPlayer?.name === currentPlayer?.name"
+                    :hand="playerHands(yourPlayer.name)"
                   />
-                  <div class="personal-cards-container"  v-if="player.name === currentPlayer.name">
-                    <template v-for="(card, index) in currentPlayerHands" :key="card.id">
+                  <div class="personal-cards-container">
+                    <template v-for="(card, index) in playerHands(yourPlayer.name)" :key="card.id">
                       <GameCard
                         :card="card"
-                        :style="calculateCardPosition(index, currentPlayerHands.length, card)"
-                        @click="pickCard(player.name, card)"
+                        :style="calculateCardPosition(index, yourPlayerHands.length, card)"
+                        @click="pickCard(yourPlayer.name, card)"
                       />
                     </template>
-                    <div class="action-buttons-container"  :style="player.name !== currentPlayer.name ? { transform: 'translate(-50%, 150%)' } : {}">
-                      <button @click="passToNext()" :class="{ 'disable-button': currentPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
-                      <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': currentPlayerPickedHands.length == 0 }">キャンセル</button>
+                    <div class="action-buttons-container" v-if="currentPlayer == yourPlayer">
+                      <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
+                      <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">キャンセル</button>
                       <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </template>
-        </div>
+        
 
         <div v-if="developingMode">
           <span>Stairs:<button @click="isStairsGoing = !isStairsGoing">{{isStairsGoing}}</button></span><br>
@@ -112,6 +101,7 @@
         </div>
 
       </div>
+
     </div>
   </div>
 </template>
@@ -245,9 +235,9 @@ export default {
           return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
         });
     },
-    currentPlayerHands() {
+    yourPlayerHands() {
       return this.deck
-        .filter(card => card.location === this.currentPlayer.name)
+        .filter(card => card.location === this.yourPlayer.name)
         .sort((a, b) => {
           const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
           const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
@@ -263,9 +253,9 @@ export default {
           return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
         });
     },
-    currentPlayerPickedHands() {
+    yourPlayerPickedHands() {
       return this.deck
-        .filter(card => card.location === this.currentPlayer.name && card.isPicked)
+        .filter(card => card.location === this.username && card.isPicked)
         .sort((a, b) => {
           const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
           const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
@@ -285,7 +275,7 @@ export default {
     readyToSubmit() {
 
       // If the player's picked hands are empty, return false
-      if (this.currentPlayerPickedHands.length === 0) return false;
+      if (this.yourPlayerPickedHands.length === 0) return false;
 
       // --------------------------------------------------------------------
 
@@ -293,20 +283,20 @@ export default {
       if (this.publicPile.length === 0) {
 
         // Single card play
-        if (this.currentPlayerPickedHands.length === 1) return true;
+        if (this.yourPlayerPickedHands.length === 1) return true;
 
         // Check if all cards are the same value
-        const sameCardCheck = this.currentPlayerPickedHands.every(
-            card => card.value === this.currentPlayerPickedHands[0].value
+        const sameCardCheck = this.yourPlayerPickedHands.every(
+            card => card.value === this.yourPlayerPickedHands[0].value
         );
         if (sameCardCheck) return true;
 
         // Check for sequence (階段)
-        if(this.currentPlayerPickedHands.length < 3) return false
-        const tempSuit = this.currentPlayerPickedHands[0].suit;
-        let tempValue = this.currentPlayerPickedHands[0].value - 1;
+        if(this.yourPlayerPickedHands.length < 3) return false
+        const tempSuit = this.yourPlayerPickedHands[0].suit;
+        let tempValue = this.yourPlayerPickedHands[0].value - 1;
 
-        for (let card of this.currentPlayerPickedHands) {
+        for (let card of this.yourPlayerPickedHands) {
           if (tempSuit !== card.suit || card.value !== ++tempValue) {
               return false;
           }
@@ -321,10 +311,10 @@ export default {
       // Stairs (isStairsGoing)
       if (this.isStairsGoing) {
           // Check if current cards form a sequence (階段) and length is not less than the previous cards
-          if (this.currentPlayerPickedHands.length < this.previousCards.length && !wasPreviousRevolution && !wasPreviousRevolution) return false;
+          if (this.yourPlayerPickedHands.length < this.previousCards.length && !wasPreviousRevolution && !wasPreviousRevolution) return false;
 
           // Check if the lowest number in the current set is higher than the lowest number in the previous set
-          const currentLowestValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue : this.currentPlayerPickedHands[0].value;
+          const currentLowestValue = this.isRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue : this.yourPlayerPickedHands[0].value;
           const previousLowestValue = this.isRevolutionGoing ? this.previousCards[0].revolutionValue : this.previousCards[0].value;
           
           // Handle the revolution case
@@ -334,10 +324,10 @@ export default {
               if (currentLowestValue <= previousLowestValue) return false;
           }
 
-          const tempSuit = this.currentPlayerPickedHands[0].suit;
-          let tempValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue - 1 : this.currentPlayerPickedHands[0].value - 1;
+          const tempSuit = this.yourPlayerPickedHands[0].suit;
+          let tempValue = this.isRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue - 1 : this.yourPlayerPickedHands[0].value - 1;
 
-          for (let card of this.currentPlayerPickedHands) {
+          for (let card of this.yourPlayerPickedHands) {
               const cardValue = this.isRevolutionGoing ? card.revolutionValue : card.value;
               if (tempSuit !== card.suit || cardValue !== ++tempValue) {
                   return false;
@@ -352,12 +342,12 @@ export default {
       // Default regular checking
 
       // Check stairs
-      if (this.currentPlayerPickedHands.length >= this.previousCards.length && this.currentPlayerPickedHands.length > 3) {
+      if (this.yourPlayerPickedHands.length >= this.previousCards.length && this.yourPlayerPickedHands.length > 3) {
           let stairCheck = true;
-          const tempSuit = this.currentPlayerPickedHands[0].suit;
-          let tempValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue + 1 : this.currentPlayerPickedHands[0].value - 1;
+          const tempSuit = this.yourPlayerPickedHands[0].suit;
+          let tempValue = this.isRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue + 1 : this.yourPlayerPickedHands[0].value - 1;
 
-          for (let card of this.currentPlayerPickedHands) {
+          for (let card of this.yourPlayerPickedHands) {
               const cardValue = this.isRevolutionGoing ? card.revolutionValue : card.value;
               if (tempSuit !== card.suit || (this.isRevolutionGoing ? cardValue !== --tempValue : cardValue !== ++tempValue)) {
                   stairCheck = false;
@@ -371,21 +361,25 @@ export default {
 
 
       // Check if all cards are the same value
-      const sameCardCheck = this.currentPlayerPickedHands.every(card => card.value === this.currentPlayerPickedHands[0].value);
+      const sameCardCheck = this.yourPlayerPickedHands.every(card => card.value === this.yourPlayerPickedHands[0].value);
       if (!sameCardCheck) return false;
 
       // Check if the length matches the previous cards
-      if (this.currentPlayerPickedHands.length < this.previousCards.length && !wasPreviousRevolution) return false;
+      if (this.yourPlayerPickedHands.length < this.previousCards.length && !wasPreviousRevolution) return false;
 
       // Check if the current cards' value is higher (or lower in revolution) than the previous cards
       const previousValue = this.isRevolutionGoing ? this.previousCards[0].revolutionValue : this.previousCards[0].value;
-      const currentValue = this.isRevolutionGoing ? this.currentPlayerPickedHands[0].revolutionValue : this.currentPlayerPickedHands[0].value;
+      const currentValue = this.isRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue : this.yourPlayerPickedHands[0].value;
 
       if (currentValue <= previousValue) {
         return false;
       }
 
       return true;
+    },
+
+    yourPlayer() {
+      return this.players.find(player => player.name === this.username);
     },
 
   },
@@ -479,8 +473,8 @@ export default {
       // console.log(this.deck)
     },
 
-    getOtherPlayers(currentPlayerName) {
-      const currentIndex = this.players.findIndex(player => player.name === currentPlayerName);
+    getOtherPlayers() {
+      const currentIndex = this.players.findIndex(player => player.name === this.yourPlayer.name);
       if (currentIndex === -1) return this.players; // Return the full list if currentPlayerName is not found
 
       const before = this.players.slice(0, currentIndex);
@@ -510,8 +504,8 @@ export default {
     
     calculateCardPosition(index, totalCards, card) {
       if (card?.isPicked) {
-        const pickedIndex = this.currentPlayerPickedHands.findIndex(c => c.id === card.id);
-        const pickedTotal = this.currentPlayerPickedHands.length;
+        const pickedIndex = this.yourPlayerPickedHands.findIndex(c => c.id === card.id);
+        const pickedTotal = this.yourPlayerPickedHands.length;
 
         if (pickedTotal === 1) {
           return {
@@ -613,7 +607,7 @@ export default {
 
     
     unpickAllCurrentPlayerCards() {
-      this.currentPlayerPickedHands.forEach(card => {
+      this.yourPlayerPickedHands.forEach(card => {
         if (card.isPicked) {
           card.isPicked = false;
         }
@@ -636,11 +630,11 @@ export default {
 
       let tempRevoultion = false
       
-      if(this.currentPlayerPickedHands.length == 4){
+      if(this.yourPlayerPickedHands.length == 4){
         console.log('rev check')
         let flag = true
-        const tempValue = this.currentPlayerHands[0]
-        for(let card of this.currentPlayerPickedHands){
+        const tempValue = this.yourPlayerHands[0]
+        for(let card of this.yourPlayerPickedHands){
           if(card.value == tempValue) flag = false
         } 
         
@@ -650,13 +644,13 @@ export default {
         }
       }
 
-      // Check if the currentPlayerPickedHands has more than one distinct value
-      const distinctValues = new Set(this.currentPlayerPickedHands.map(card => card.value));
-      if (this.currentPlayerPickedHands.length > 2 && distinctValues.size > 1 && !tempRevoultion) {
+      // Check if the yourPlayerPickedHands has more than one distinct value
+      const distinctValues = new Set(this.yourPlayerPickedHands.map(card => card.value));
+      if (this.yourPlayerPickedHands.length > 2 && distinctValues.size > 1 && !tempRevoultion) {
         this.isStairsGoing = true;
       }
 
-      this.currentPlayerPickedHands.forEach(card => {
+      this.yourPlayerPickedHands.forEach(card => {
         card.isPicked = false
         card.location = 'publicArea'
         card.updatedAt = currentTime;
@@ -675,7 +669,7 @@ export default {
 
       // console.log(this.publicPile)
 
-      if(this.currentPlayerHands.length == 0) {
+      if(this.yourPlayerHands.length == 0) {
         await this.sleep(500)
         alert(`the game is over\n\n${this.currentPlayer.name} won!`)
       }
@@ -787,7 +781,7 @@ export default {
         // joining room and wait until it closes
         // if(this.currentPage == 'before'){
         this.onlineStatus = doc.data()?.onlineStatus
-        this.players = doc.data().players
+        this.players = doc.data()?.players
         
 
         if(this.onlineStatus == 'playing') {
@@ -925,7 +919,7 @@ export default {
 
   #app .inner{
     max-width: 98vw;
-    margin: 5vh auto;
+    /* margin: 5vh auto; */
   } 
 
   .input-modal{
@@ -996,8 +990,11 @@ export default {
     margin: auto;
   }
 
-  .screens-cotainer .main-container{
-    height: 635px;
+  .main-container{
+    height: 100vh;
+    width: 100vw;
+
+    box-sizing: border-box;
 
     overflow: hidden;
 
@@ -1013,7 +1010,7 @@ export default {
     padding: 10px;
   }
 
-  .screens-cotainer .main-container .area-container{
+  .main-container .area-container{
     display: grid;
     grid-template-rows: calc(10% - 10px) calc(20% - 10px) calc(25% - 10px) calc(45% - 10px);
     align-content: space-between;
@@ -1022,7 +1019,7 @@ export default {
     height: 100%;
   }
 
-  .screens-cotainer .main-container .area-container > *{
+  .main-container .area-container > *{
     /* overflow: hidden; */
     background: #4B6F44;
 
@@ -1104,6 +1101,14 @@ export default {
   }
 
   /* ---------------------------------------- */
+
+  .others-area .inner{
+    display: flex;
+    justify-content: space-between;
+    width: 90%;
+    margin: auto;
+
+  }
 
   .other-players-area{
     width: 100%;
@@ -1263,5 +1268,20 @@ export default {
   .public-area .public-cards-container .previous-card{
     /* opacity: .5; */
     filter: grayscale(100%) brightness(50%);
+  }
+
+  /* ---------------------------------------- */
+
+  .basic-info{
+    position: absolute;
+    bottom: 10px;
+
+    width: 90%;
+
+    left: 50%;
+    transform: translate(-50%,-50%);
+
+    display: flex;
+    justify-content: space-between;
   }
 </style>
