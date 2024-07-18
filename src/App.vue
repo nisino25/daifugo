@@ -994,7 +994,7 @@ export default {
     height: 100vh;
     width: 100vw;
 
-    max-width: 400px;
+    max-width: 500px;
     max-height: 700px;
 
     position: absolute;
@@ -1015,7 +1015,7 @@ export default {
 
     color: white;
 
-    padding: 10px;
+    padding: 20px;
   }
 
   .main-container .area-container{
@@ -1038,7 +1038,7 @@ export default {
   .gameCard{
     display: block;
     width: var(--game-card-width);
-    aspect-ratio: 5/8;
+    /* aspect-ratio: 5/8; */
     border: 1px solid black;
     border-radius: 5px;
     position: absolute;
@@ -1271,6 +1271,7 @@ export default {
   .public-area .public-cards-container .gameCard{
     position: absolute;
     width:50px;
+    height: 80px;
   }
 
   .public-area .public-cards-container .previous-card{
