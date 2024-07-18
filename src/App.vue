@@ -906,10 +906,10 @@ export default {
     font-family: 'Noto Sans JP', sans-serif;
     /* height: 100vh; */
     margin: 0;
+    padding: 0;
     background-color: whitesmoke;
 
     overflow: hidden;
-    height: 100%;
 
     
   }
