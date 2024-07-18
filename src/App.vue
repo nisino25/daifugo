@@ -994,6 +994,14 @@ export default {
     height: 100vh;
     width: 100vw;
 
+    max-width: 400px;
+    max-height: 700px;
+
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+
     box-sizing: border-box;
 
     overflow: hidden;
