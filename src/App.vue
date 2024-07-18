@@ -902,15 +902,14 @@ export default {
     margin: 0;
   }
 
-  html{
-    overflow: hidden;
-    /* transform: scale(.8); */
-  }
-  body {
+  html,body {
     font-family: 'Noto Sans JP', sans-serif;
     /* height: 100vh; */
     margin: 0;
     background-color: whitesmoke;
+
+    overflow: hidden;
+    height: 100%;
 
     
   }
