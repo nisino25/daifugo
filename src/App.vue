@@ -988,7 +988,7 @@ export default {
 
     /* width: 95vw; */
     margin: auto;
-  }
+  } 
 
   .main-container{
     height: 100vh;
