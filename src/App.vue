@@ -1011,7 +1011,7 @@ export default {
 
     background: #13563B;
 
-    position: relative;
+    /* position: relative; */
 
     color: white;
 
