@@ -995,7 +995,7 @@ export default {
     width: 100vw;
 
     max-width: 500px;
-    max-height: 700px;
+    max-height: 1000px;
 
     position: absolute;
     top: 50%;
@@ -1007,7 +1007,7 @@ export default {
     overflow: hidden;
 
     border: 1px solid black;
-    border-radius: 10px;
+    /* border-radius: 10px; */
 
     background: #13563B;
 
