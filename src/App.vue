@@ -903,6 +903,7 @@ export default {
   }
 
   html{
+    overflow: hidden;
     /* transform: scale(.8); */
   }
   body {
@@ -994,8 +995,8 @@ export default {
     height: 100vh;
     width: 100vw;
 
-    max-width: 500px;
-    max-height: 1000px;
+    max-width: 425px;
+    max-height: 900px;
 
     position: absolute;
     top: 50%;
