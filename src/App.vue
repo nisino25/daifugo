@@ -1036,8 +1036,12 @@ export default {
   }
 
   .gameCard{
-    display: block;
-    width: var(--game-card-width);
+    display: grid;
+    grid-template-columns: calc(35% - 2.5px) calc(55% - 2.5px);
+    justify-content: space-between;
+
+    padding: 5px 2.5px;
+    /* width: var(--game-card-width); */
     /* aspect-ratio: 5/8; */
     border: 1px solid black;
     border-radius: 5px;
@@ -1049,14 +1053,12 @@ export default {
     color: black;
 
     transition: all .3s ease-in-out;
+
+    width:50px;
+    height: 80px;
   }
 
   .gameCard{
-    display: grid;
-    grid-template-columns: calc(35% - 2.5px) calc(55% - 2.5px);
-    justify-content: space-between;
-
-    padding: 5px 2.5px;
   }
 
 
@@ -1270,8 +1272,7 @@ export default {
 
   .public-area .public-cards-container .gameCard{
     position: absolute;
-    width:50px;
-    height: 80px;
+    
   }
 
   .public-area .public-cards-container .previous-card{
