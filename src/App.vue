@@ -52,7 +52,7 @@
                   <template v-for="otherPlayer in getOtherPlayers()" :key="otherPlayer.name">                  
                     <PlayerInfo
                       :player="otherPlayer"
-                      :isActive="otherPlayer.name === yourPlayer.name"
+                      :isActive="otherPlayer == currentPlayer"
                       :hand="playerHands(otherPlayer.name)"
                     />
                     
