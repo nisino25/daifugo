@@ -789,6 +789,7 @@ export default {
           this.lastSubmitBy = doc.data()?.lastSubmitBy
           this.currentPlayerIndex = doc.data().currentPlayerIndex
           this.currentPage = 'game'
+          localStorage.setItem('latestRoomCode', null);
         }
         
         // if(!this.players.includes(this.username)){
