@@ -5,7 +5,7 @@
       <span :class="{'vertical-text': card.rank == 'Joker'}">{{ card.rank }}</span>
     </div>
     <div class="card-detail">
-      {{ card.rank }}
+      <div :class="['suit-icon', `suit-${card.suit}`]"></div>
     </div>
   </div>
 </template>

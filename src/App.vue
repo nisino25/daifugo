@@ -4,13 +4,12 @@
 
       <div v-if="currentPage === 'before'">
         <div class="input-modal">
-          <h2 v-if="!roomOption">ルームを選択してください</h2>
           
 
           <div v-if="!roomOption">
             <button @click="roomOption = 'create'" class="room-button">ルームを作成</button>
             <hr>
-            <button @click="roomOption = 'join'; retriveCode()" class="room-button">ルームに参加</button>
+            <button @click="roomOption = 'join'; retriveCode()" class="start-button">ルームに参加</button>
           </div>
 
           <template v-if="roomOption && !roomCode">
@@ -21,8 +20,8 @@
               <div class="player-input" v-if="roomOption === 'join'">
                 <input type="number" v-model="tempRoomcode" placeholder="ルームコードを入力">
               </div>
-              <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button>
-              <button @click="roomOption = null" class="start-button" style="background-color: crimson;">戻る</button>
+              <!-- <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button> -->
+              <button @click="roomOption = null" class="back-button" style="background-color: crimson;">戻る</button>
               <button v-if="readyToPlay && roomOption === 'create'" @click="createARoom()" class="start-button">部屋を作る</button>
               <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay && roomOption === 'join'" @click="joinARoom()" class="start-button">参加する</button>
           </template>
@@ -45,6 +44,8 @@
                 <div class="others-area">
                   <div class="inner">
                     <span>{{ username }}</span>
+                    <span>階段 :{{ isStairsGoing }}</span>
+                    <span>革命 :{{ isRevolutionGoing }}</span>
                     <span>{{ roomCode }}</span>
                   </div>
                 </div>
@@ -61,7 +62,7 @@
                 <div class="public-area">
                   <div class="public-cards-container">
                     <template v-for="(group, groupIndex) in groupedPublicPile" :key="groupIndex">
-                      <div class="timestamp-group" :style="getCardStyle(group[0])" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
+                      <div class="timestamp-group" :style="getGroupCardStyle(group[0])" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
                         <template v-for="(card,cardIndex) in group" :key="card.id">
                           <GameCard :card="card" @click="pickCard(yourPlayer.name, card)" :style="getGap(cardIndex,group)" />
                         </template>
@@ -73,12 +74,13 @@
                 <div class="personal-area">
                   <PlayerInfo
                     :player="yourPlayer"
-                    :isActive="yourPlayer?.name === currentPlayer?.name"
+                    :isActive="yourPlayer === currentPlayer"
                     :hand="playerHands(yourPlayer.name)"
                   />
                   <div class="personal-cards-container">
                     <template v-for="(card, index) in playerHands(yourPlayer.name)" :key="card.id">
                       <GameCard
+                        :class="{ 'card-mask': currentPlayer !== yourPlayer }" 
                         :card="card"
                         :style="calculateCardPosition(index, yourPlayerHands.length, card)"
                         @click="pickCard(yourPlayer.name, card)"
@@ -94,11 +96,6 @@
               </div>
             </div>
         
-
-        <div v-if="developingMode">
-          <span>Stairs:<button @click="isStairsGoing = !isStairsGoing">{{isStairsGoing}}</button></span><br>
-          <span>revolution:<button @click="isRevolutionGoing = !isRevolutionGoing">{{isRevolutionGoing}}</button></span><br>
-        </div>
 
       </div>
 
@@ -203,7 +200,27 @@ export default {
     groupedPublicPile() {
       // Group cards by the timestamp
       const grouped = {};
-      this.publicPile.forEach(card => {
+
+      // Filter cards located in 'publicArea'
+      const filteredCards = this.deck.filter(card => card.location === 'publicArea' || card.location === 'trash');
+
+
+      // Sort cards by the timestamp in descending order (latest first)
+      const sortedByTimestamp = filteredCards.sort((a, b) => b.updatedAt - a.updatedAt);
+
+      // Further sort the cards by value and suit
+      const sortedCards = sortedByTimestamp.sort((a, b) => {
+        // First, sort by value
+        const valueComparison = a.value - b.value;
+        if (valueComparison !== 0) {
+          return valueComparison;
+        }
+        // Then, sort by suit
+        const suitOrder = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+        return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
+      });
+
+      sortedCards.forEach(card => {
         if (!grouped[card.updatedAt]) {
           grouped[card.updatedAt] = [];
         }
@@ -519,11 +536,13 @@ export default {
         // Calculate the step percentage for picked cards to fit under 80%
         const pickedStep = 55 / (pickedTotal - 1);
         const pickedPosition = pickedStep * pickedIndex;
+        // let opacityValue = 1
+        // if(this.yourPlayer !== this.currentPlayer) opacityValue = .5
 
         return {
           left: `${35 + pickedPosition}%`, // Start from 20% and use the next 80%
           top: `0%`, // Adjust as needed for vertical position
-          transform: `translateX(-${pickedPosition + 40}%) translateY(-120%)`
+          transform: `translateX(-${pickedPosition + 40}%) translateY(-120%)`,
         };
       }
 
@@ -552,16 +571,16 @@ export default {
       let yRadius
       if (totalCards > 20) {
         minRotation = -50;
-        xRadius = 165
-        yRadius = 160
+        xRadius = 185
+        yRadius = 210
       } else if (totalCards > 10) {
-        minRotation = -35;
-        xRadius = 140
-        yRadius = 150
+        minRotation = -40;
+        xRadius = 165
+        yRadius = 170
       } else {
         minRotation = -15;
-        xRadius = 115
-        yRadius = 140
+        xRadius = 155
+        yRadius = 150
       }
       const x = xRadius * Math.cos(angle);
       const y = yRadius * Math.sin(angle);
@@ -679,11 +698,17 @@ export default {
       this.updatingData()
 
     },
-    getCardStyle(card) {
+    getGroupCardStyle(card) {
+      let leftPosition = card.horizontalPosition;
+
+      if (card.location === 'trash') {
+        leftPosition = 200;
+      }
+
       return `
-        top:${card.verticalPosition}%;
-        left:${card.horizontalPosition}%;
-        transform: rotate(${card.rotation}deg)
+        top: ${card.verticalPosition}%;
+        left: ${leftPosition}%;
+        transform: rotate(${card.rotation}deg);
       `;
     },
     getGap(cardIndex) {
@@ -738,6 +763,8 @@ export default {
         players: this.players,
         onlineStatus: 'waiting',
         deck: this.deck,
+        isStairsGoing: false,
+        isRevolutionGoing: false
 
       })
       
@@ -790,6 +817,9 @@ export default {
           this.currentPlayerIndex = doc.data().currentPlayerIndex
           this.currentPage = 'game'
           localStorage.setItem('latestRoomCode', null);
+
+          this.isStairsGoing = doc.data().isStairsGoing
+          this.isRevolutionGoing = doc.data().isRevolutionGoing
         }
         
         // if(!this.players.includes(this.username)){
@@ -837,6 +867,8 @@ export default {
         lastSubmitBy: this.lastSubmitBy,
         deck:this.deck,
         currentPlayerIndex: this.currentPlayerIndex,
+        isStairsGoing: this.isStairsGoing,
+        isRevolutionGoing: this.isRevolutionGoing
       })
 
     },
@@ -938,8 +970,13 @@ export default {
     left: 50%;
     transform: translate(-50%,-50%);
   }
+
+  .input-modal hr{
+    margin: 10px auto;
+  }
   h2 {
-    margin-top: 0;
+    margin: 0 auto 10px;
+
     text-align: center;
   }
   .player-input {
@@ -953,29 +990,36 @@ export default {
     border: 1px solid #ccc;
     border-radius: 4px;
   }
-  .player-input button {
-    background-color: #e74c3c;
+  .input-modal button {
+    background-color: #3498db;
+    
     color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 12px;
     margin-left: 5px;
     cursor: pointer;
-  }
-  .add-button, .start-button {
+
     display: block;
-    width: 100%;
+    width: 50%;
+    margin: 10px auto;
+
+
+    display: block;
     padding: 10px;
     border: none;
     border-radius: 4px;
     margin-top: 10px;
     cursor: pointer;
+  }
+  .add-button, .start-button {
 
-    background-color: #3498db;
-    color: #fff;
+    
+    /* color: #fff; */
+  }
+
+  .back-button{
+    background: #e74c3c;
   }
   .start-button {
-    background-color: #2ecc71;
+    background-color: #2ecc71 !important;
     color: #fff;
   }
   /* ---------------------------------------- */
@@ -1037,10 +1081,8 @@ export default {
   }
 
   .gameCard{
-    display: grid;
-    grid-template-columns: calc(35% - 2.5px) calc(55% - 2.5px);
-    justify-content: space-between;
 
+    position: relative;
     padding: 5px 2.5px;
     /* width: var(--game-card-width); */
     /* aspect-ratio: 5/8; */
@@ -1057,14 +1099,38 @@ export default {
 
     width:50px;
     height: 80px;
+
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
   }
 
-  .gameCard{
+  .gameCard::before{
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+
+    width: 100%;
+    height: 100%;
+    background: black;
+    opacity: 0;
+
+    z-index: 1;
+
+    transition: all .5s ease-in-out;
+
   }
+
+  .gameCard.card-mask::before{
+    opacity: .5;
+  }
+
 
 
 
   .gameCard .card-info{
+    display: block;
+    width: 35%;
     text-align: center;
     font-size: .75em;
 
@@ -1078,9 +1144,12 @@ export default {
   }
 
   .gameCard .card-detail{
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+
+    width: 50%;
   }
 
   .gameCard img {
@@ -1269,6 +1338,8 @@ export default {
     position: absolute;
     width: 57px;
     aspect-ratio: 5 / 8;
+
+    transition: all .5s ease-in-out;
   }
 
   .public-area .public-cards-container .gameCard{
