@@ -858,9 +858,10 @@ export default {
       this.currentPlayerIndex = 0;
       this.currentPage = 'game';
 
-      this.initializeDeck()
+      await this.initializeDeck()
 
-      this.detailData =[{gameStatus: 'ready'}]
+      alert(this.deck.length)
+
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
         deck: this.deck,
