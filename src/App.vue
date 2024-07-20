@@ -596,7 +596,7 @@ export default {
       } else{
         minRotation = -15;
         xRadius = 100
-        yRadius = 125
+        yRadius = 105
       }
       const x = xRadius * Math.cos(angle);
       const y = yRadius * Math.sin(angle);
