@@ -28,7 +28,7 @@
 
           <template v-if="roomOption && roomCode">
             <h2>ようこそ！ {{ username }}さん</h2>
-            <p>{{ roomCode }}で待機中。</p>
+            <p><strong>{{ roomCode }}</strong>で待機中。</p>
             <hr>
             <template v-for="(player, index) in players" :key="index">
               <p>{{index +1}}.{{ player.name }}</p>
@@ -65,15 +65,10 @@
                     </template>
                   </div>
 
-
-
-                  <div class="others-area">
-                    <div class="inner">
-                      <span>{{ username }}</span>
-                      <span>階段 :{{ isStairsGoing }}</span>
-                      <span>革命 :{{ isRevolutionGoing }}</span>
-                      <span>{{ roomCode }}</span>
-                    </div>
+                  <div class="detailed-area">
+                    <span>#{{ roomCode }}</span>
+                    <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >階段</span>
+                    <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >革命</span>
                   </div>
 
                 </div>
@@ -950,23 +945,15 @@ export default {
   }
 
   html,body,#app {
-
     height: 100%;
-
-    overflow: hidden;
-
-
-    font-family: 'Noto Sans JP', sans-serif;
-    /* height: 100vh; */
     margin: 0;
     padding: 0;
-    background-color: whitesmoke;
 
     overflow: hidden;
 
-    background: #13563B;
+    font-family: 'Noto Sans JP', sans-serif;
 
-    
+    background: #13563B;
   }
 
   img{
@@ -996,6 +983,14 @@ export default {
     margin: 0 auto 10px;
 
     text-align: center;
+  }
+
+  .input-modal strong{
+    font-size: 2.5em;
+    color: crimson;
+    margin-right: 5px;
+    
+    font-weight: bold;
   }
 
   /* --------------------------------- */
@@ -1048,9 +1043,6 @@ export default {
 
 
     height: 90vh;
-
-    height: 100vh;
-    padding: 5vh 0;
 
     box-sizing: border-box;
 
@@ -1189,7 +1181,7 @@ export default {
 
   .area-container .other-players-area{
     display: grid;
-    grid-template-columns: repeat(5, calc(20% - 10px));
+    grid-template-columns: repeat(5, calc(20% - 5px));
     justify-content: space-between;
     align-items: center;
 
@@ -1222,7 +1214,7 @@ export default {
     left: 0;
     width: 100%;
     height: 100%;
-    border: 2px solid yellow; /* Change the color as needed */
+    border: 2px solid #DAA520; /* Change the color as needed */
     box-sizing: border-box; /* Ensure the border is included in the element's size */
     pointer-events: none; /* Ensure the pseudo-element doesn't interfere with interactions */
     opacity: 0; /* Start with opacity 0 */
@@ -1374,6 +1366,33 @@ export default {
   .public-area .public-cards-container .previous-card{
     /* opacity: .5; */
     filter: grayscale(100%) brightness(50%);
+  }
+
+  .public-area .detailed-area{
+    /* width: 80%; */
+    padding: 5px;
+    display: grid;
+    align-content: space-around;
+    justify-content: center;
+    box-sizing: border-box;
+
+    text-align: center;
+  }
+  
+
+  .public-area .detailed-area .status-badge{
+    display: block;
+    width: 100%;
+    margin: 0 auto;
+    padding: 5px 0;
+    background: #DAA520;
+    border-radius: 5px;
+    color: black;
+    transition: all .5s ease-in-out;
+  }
+
+  .public-area .detailed-area .status-badge.undo-badge{
+    opacity: .5
   }
 
   /* ---------------------------------------- */
