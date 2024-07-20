@@ -69,6 +69,7 @@
                     <span>#{{ roomCode }}</span>
                     <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >階段</span>
                     <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >革命</span>
+                    <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
                   </div>
 
                 </div>
@@ -411,6 +412,9 @@ export default {
   methods: {
     sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
+    },
+    reloadPage(){
+      location.reload();
     },
     shuffleArray(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -981,7 +985,7 @@ export default {
   }
   h2 {
     margin: 0 auto 10px;
-
+    font-size: 1.25em;
     text-align: center;
   }
 
