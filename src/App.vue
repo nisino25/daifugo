@@ -584,11 +584,11 @@ export default {
       let yRadius
       if (totalCards > 20) {
         minRotation = -50;
-        xRadius = 185
+        xRadius = 165
         yRadius = 210
       } else if (totalCards > 10) {
         minRotation = -40;
-        xRadius = 165
+        xRadius = 160
         yRadius = 170
       } else {
         minRotation = -15;
@@ -1306,7 +1306,7 @@ export default {
     position: absolute;
     top: 10px;
     left: 10px;
-    width: calc(20% - 20px);
+    width: calc(20% - 10px);
   }
 
   .personal-cards-container{
