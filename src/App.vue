@@ -69,9 +69,9 @@
                     <span>#{{ roomCode }}</span>
                     <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >階段</span>
                     <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >革命</span>
-                    <div style="display: flex; justify-content: space-between; width: 100%">
+                    <div style="display: flex; justify-content: space-around; width: 100%">
                       <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
-                      <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa fa-refresh" aria-hidden="true"></i>
+                      <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa-solid fa-right-left"></i>
                     </div>
                   </div>
 
@@ -491,8 +491,6 @@ export default {
         { rank: '2', value: 15, revolutionValue: 3 },
       ];
 
-      // Initialize the deck with standard cards
-      this.deck = [];
       let id = 1;
       for (let suit of suits) {
         for (let rank of ranks) {
@@ -751,7 +749,12 @@ export default {
         await this.sleep(1000)
         this.clearPublicPile()
         await this.updatingData()
+        return
       }
+
+      // for(let i in this.players.length){
+      //   await this.goToNextPlayer()
+      // }
       
       await this.goToNextPlayer()
       await this.updatingData()
@@ -918,6 +921,7 @@ export default {
       this.isStairsGoing = false
       this.isRevolutionGoing = false
 
+      this.deck = []
       await this.initializeDeck()
 
       // alert(this.deck.length)
