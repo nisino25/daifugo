@@ -949,7 +949,7 @@ export default {
     margin: 0;
   }
 
-  html,body {
+  html,body,#app {
 
     height: 100%;
 
@@ -968,14 +968,10 @@ export default {
 
     
   }
+
   img{
     max-width: 100%;
   }
-
-  #app .inner{
-    max-width: 98vw;
-    /* margin: 5vh auto; */
-  } 
 
   .input-modal{
     background-color: #fff;
@@ -1001,6 +997,8 @@ export default {
 
     text-align: center;
   }
+
+  /* --------------------------------- */
   .player-input {
     display: flex;
     align-items: center;
@@ -1037,7 +1035,6 @@ export default {
   }
   .start-button {
     background-color: #13563B !important;
-    color: #fff;
   }
   /* ---------------------------------------- */
 
@@ -1047,25 +1044,19 @@ export default {
     left: 50%;
     transform: translate(-50%,-50%);
 
-    background: red;
+    /* background: red; */
 
 
     height: 90vh;
+
+    height: 100vh;
+    padding: 5vh 0;
 
     box-sizing: border-box;
 
     overflow: hidden;
 
-    /* border: 1px solid black; */
-    /* border-radius: 10px; */
-
-    /* background: #13563B; */
-
-    /* position: relative; */
-
     color: white;
-
-    /* padding: 20px; */
 
     width: 100%;
     overflow: hidden;
@@ -1076,8 +1067,6 @@ export default {
     width: 90vw;
 
     margin: auto;
-
-
 
     max-width: 425px;
     max-height: 900px;
