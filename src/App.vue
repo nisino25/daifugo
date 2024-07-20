@@ -589,10 +589,14 @@ export default {
         minRotation = -40;
         xRadius = 160
         yRadius = 170
-      } else {
+      } else if (totalCards > 5) {
         minRotation = -15;
         xRadius = 155
         yRadius = 150
+      } else{
+        minRotation = -15;
+        xRadius = 100
+        yRadius = 125
       }
       const x = xRadius * Math.cos(angle);
       const y = yRadius * Math.sin(angle);
@@ -671,7 +675,7 @@ export default {
         
         if(flag){
           tempRevoultion = true
-          this.isRevolutionGoing = true
+          this.isRevolutionGoing = !this.isRevolutionGoing
         }
       }
 
@@ -685,29 +689,25 @@ export default {
         card.isPicked = false
         card.location = 'publicArea'
         card.updatedAt = currentTime;
-        const maxDeg = 15;
+        const maxDeg = 10;
 
         // Generate a random integer between minDeg and maxDeg
         const randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
 
         card.rotation = randomRotation
 
-        card.verticalPosition = Math.floor(Math.random() * 31);
-        card.horizontalPosition = Math.floor(Math.random() * 31);
+        card.verticalPosition = Math.floor(Math.random() * (45 - 5 + 1)) + 5;
+        card.horizontalPosition = Math.floor(Math.random() * (65 - 5 + 1)) + 5;
       });
 
       
 
       // console.log(this.publicPile)
 
-      if(this.yourPlayerHands.length == 0) {
-        await this.sleep(500)
-        alert(`the game is over\n\n${this.currentPlayer.name} won!`)
-      }
+      if(this.yourPlayerHands.length == 0) this.winner = this.yourPlayer.name
       
       this.goToNextPlayer()
-
-      this.updatingData()
+      await this.updatingData()
 
     },
     getGroupCardStyle(card) {
@@ -826,7 +826,17 @@ export default {
 
         if(this.onlineStatus == 'playing') {
           this.deck = doc.data().deck
+
+          this.winner = doc.data().winner
+          if(this.winner) alert(`${this.winner} just won! the game is over`)
+
+
           this.lastSubmitBy = doc.data()?.lastSubmitBy
+
+
+          // check if the game is overr
+
+
           this.currentPlayerIndex = doc.data().currentPlayerIndex
           this.currentPage = 'game'
           localStorage.setItem('latestRoomCode', null);
@@ -860,7 +870,7 @@ export default {
 
       await this.initializeDeck()
 
-      alert(this.deck.length)
+      // alert(this.deck.length)
 
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
@@ -879,7 +889,8 @@ export default {
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
         lastSubmitBy: this.lastSubmitBy,
-        deck:this.deck,
+        deck: this.deck,
+        winner: this.winner,
         currentPlayerIndex: this.currentPlayerIndex,
         isStairsGoing: this.isStairsGoing,
         isRevolutionGoing: this.isRevolutionGoing
@@ -1314,7 +1325,7 @@ export default {
     background-color: #FFAC1C; /* Green background */
     border: none; /* Remove borders */
     color: black; /* White text */
-    padding: 2.5px 0;
+    padding: 5px 0;
     text-align: center; /* Center the text */
     text-decoration: none; /* Remove underline */
     font-size: .9em; /* Increase font size */
@@ -1330,6 +1341,7 @@ export default {
     color: #666; /* Dark gray text for disabled state */
     cursor: not-allowed; /* Change cursor to not-allowed */
     pointer-events: none; /* Disable all pointer events */
+    padding: 5px 0;
   }
 
   /* ---------------------------------------- */
