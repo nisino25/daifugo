@@ -41,14 +41,7 @@
       <div v-if="currentPage === 'game'">
         <div class="main-container">
               <div class="area-container">
-                <div class="others-area">
-                  <div class="inner">
-                    <span>{{ username }}</span>
-                    <span>階段 :{{ isStairsGoing }}</span>
-                    <span>革命 :{{ isRevolutionGoing }}</span>
-                    <span>{{ roomCode }}</span>
-                  </div>
-                </div>
+
                 <div class="other-players-area">
                   <template v-for="otherPlayer in getOtherPlayers()" :key="otherPlayer.name">                  
                     <PlayerInfo
@@ -59,7 +52,9 @@
                     
                   </template>
                 </div>
+
                 <div class="public-area">
+
                   <div class="public-cards-container">
                     <template v-for="(group, groupIndex) in groupedPublicPile" :key="groupIndex">
                       <div class="timestamp-group" :style="getGroupCardStyle(group[0])" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
@@ -69,15 +64,30 @@
                       </div>
                     </template>
                   </div>
+
+
+
+                  <div class="others-area">
+                    <div class="inner">
+                      <span>{{ username }}</span>
+                      <span>階段 :{{ isStairsGoing }}</span>
+                      <span>革命 :{{ isRevolutionGoing }}</span>
+                      <span>{{ roomCode }}</span>
+                    </div>
+                  </div>
+
                 </div>
 
                 <div class="personal-area">
+
                   <PlayerInfo
                     :player="yourPlayer"
                     :isActive="yourPlayer === currentPlayer"
                     :hand="playerHands(yourPlayer.name)"
                   />
+
                   <div class="personal-cards-container">
+                    
                     <template v-for="(card, index) in playerHands(yourPlayer.name)" :key="card.id">
                       <GameCard
                         :class="{ 'card-mask': currentPlayer !== yourPlayer }" 
@@ -86,17 +96,20 @@
                         @click="pickCard(yourPlayer.name, card)"
                       />
                     </template>
-                    <div class="action-buttons-container" v-if="currentPlayer == yourPlayer">
+
+                    <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer ? 'translate(-50%,-150%)' : 'translate(-50%,0%)',}">
                       <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
                       <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">キャンセル</button>
                       <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
                     </div>
+
                   </div>
+
+
                 </div>
+
               </div>
             </div>
-        
-
       </div>
 
     </div>
@@ -702,7 +715,7 @@ export default {
       let leftPosition = card.horizontalPosition;
 
       if (card.location === 'trash') {
-        leftPosition = 200;
+        leftPosition = -100;
       }
 
       return `
@@ -779,6 +792,7 @@ export default {
       try {
         const doc = await docRef.get();
         if (doc.exists) {
+          if(doc.data().onlineStatus == 'playing') return alert('This room is closed.')
 
           this.players = doc.data().players;
           this.onlineStatus = doc.data().players;
@@ -936,6 +950,14 @@ export default {
   }
 
   html,body {
+    display: block;
+
+    width: 100vw;
+    height: 100vh;
+
+    overflow: hidden;
+
+
     font-family: 'Noto Sans JP', sans-serif;
     /* height: 100vh; */
     margin: 0;
@@ -943,6 +965,8 @@ export default {
     background-color: whitesmoke;
 
     overflow: hidden;
+
+    background: #13563B;
 
     
   }
@@ -991,7 +1015,7 @@ export default {
     border-radius: 4px;
   }
   .input-modal button {
-    background-color: #3498db;
+    background-color: #3581B8;
     
     color: #fff;
     margin-left: 5px;
@@ -1009,17 +1033,12 @@ export default {
     margin-top: 10px;
     cursor: pointer;
   }
-  .add-button, .start-button {
-
-    
-    /* color: #fff; */
-  }
 
   .back-button{
-    background: #e74c3c;
+    background: #B83A4B;
   }
   .start-button {
-    background-color: #2ecc71 !important;
+    background-color: #13563B !important;
     color: #fff;
   }
   /* ---------------------------------------- */
@@ -1036,22 +1055,19 @@ export default {
   } 
 
   .main-container{
-    height: 100vh;
-    width: 100vw;
-
-    max-width: 425px;
-    max-height: 900px;
-
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%,-50%);
 
+
+    height: 90vh;
+
     box-sizing: border-box;
 
     overflow: hidden;
 
-    border: 1px solid black;
+    /* border: 1px solid black; */
     /* border-radius: 10px; */
 
     background: #13563B;
@@ -1060,32 +1076,43 @@ export default {
 
     color: white;
 
-    padding: 20px;
+    /* padding: 20px; */
+
+    width: 100%;
+    overflow: hidden;
   }
 
-  .main-container .area-container{
-    display: grid;
-    grid-template-rows: calc(10% - 10px) calc(20% - 10px) calc(25% - 10px) calc(45% - 10px);
-    align-content: space-between;
-
-    /* width: 100%; */
+  .area-container{
     height: 100%;
+    width: 90vw;
+
+    margin: auto;
+
+
+
+    max-width: 425px;
+    max-height: 900px;
+
+
+    display: grid;
+    grid-template-rows: calc(20% - 10px) calc(30% - 10px) calc(50% - 10px);
+    align-content: space-between;
   }
 
-  .main-container .area-container > *{
+  .area-container > *{
     /* overflow: hidden; */
     background: #4B6F44;
 
     display: flex;
     align-items: center;
+
+    border-radius: 10px;
   }
 
   .gameCard{
 
     position: relative;
     padding: 5px 2.5px;
-    /* width: var(--game-card-width); */
-    /* aspect-ratio: 5/8; */
     border: 1px solid black;
     border-radius: 5px;
     position: absolute;
@@ -1097,8 +1124,8 @@ export default {
 
     transition: all .3s ease-in-out;
 
-    width:50px;
-    height: 80px;
+    width:60px;
+    height: 90px;
 
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
   }
@@ -1182,23 +1209,24 @@ export default {
 
   /* ---------------------------------------- */
 
-  .others-area .inner{
-    display: flex;
+  .area-container .other-players-area{
+    display: grid;
+    grid-template-columns: repeat(5, calc(20% - 10px));
     justify-content: space-between;
-    width: 90%;
+    align-items: center;
+
+    width: 100%;
+    height: 100%;
     margin: auto;
 
-  }
+    padding: 0 10px;
 
-  .other-players-area{
-    width: 100%;
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-start;
+    box-sizing: border-box;
+
     
   }
   .playerInfo{
-    width: calc(20% - 4px);
+    width: 100%;
     text-align: center;
     font-size: .7em;
   }
@@ -1267,18 +1295,25 @@ export default {
 
   /* ---------------------------------------- */
   .personal-area{
+    position: relative;
+    
     display: grid !important;
-    grid-template-rows: calc(40% - 10px) calc(60% - 10px);
-    align-content: space-between;
+    align-items: flex-end !important;
+
+  }
+
+  .personal-area .playerInfo{
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: calc(20% - 20px);
   }
 
   .personal-cards-container{
     position: relative;
-    display: flex;
     align-items: center;
     width: 100%;
-    margin: auto;
-    height: 100%;
+    height: 60%;
 
     /* border: 1px solid black; */
     z-index: 5;
@@ -1286,9 +1321,8 @@ export default {
 
   .action-buttons-container{
     position: absolute;
-    bottom: 0%;
+    top: 100%;
     left: 50%;
-    transform: translate(-50%,-15%);
 
     display: grid;
     grid-template-columns: repeat(3, calc(33.3% - 5px));
@@ -1325,13 +1359,25 @@ export default {
 
   /* ---------------------------------------- */
   .public-area{
-    display: block !important;
+    display: grid !important;
+    grid-template-columns: calc(70% - 10px) calc(30% - 10px);
+    justify-content: space-between;
+
+    background: unset !important;
+    border-radius: unset !important;
+  }
+
+  .public-area > *{
+    background: #4B6F44;
+    border-radius: 10px;
+
+    width: 100%;
+    height: 100%;
   }
   .public-area .public-cards-container{
     position: relative;
-    width: 50%;
-    height: 100%;
     margin: auto;
+    overflow: hidden;
   }
   
   .public-area .public-cards-container .timestamp-group{
