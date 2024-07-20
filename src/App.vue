@@ -950,10 +950,8 @@ export default {
   }
 
   html,body {
-    display: block;
 
-    width: 100vw;
-    height: 100vh;
+    height: 100%;
 
     overflow: hidden;
 
@@ -1043,22 +1041,13 @@ export default {
   }
   /* ---------------------------------------- */
 
-  .screens-cotainer{
-    display: grid;
-    grid-template-columns: repeat(3, 353px);
-    row-gap: 10px;
-    justify-content: space-between;
-    align-items: center;
-
-    /* width: 95vw; */
-    margin: auto;
-  } 
-
   .main-container{
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%,-50%);
+
+    background: red;
 
 
     height: 90vh;
@@ -1070,7 +1059,7 @@ export default {
     /* border: 1px solid black; */
     /* border-radius: 10px; */
 
-    background: #13563B;
+    /* background: #13563B; */
 
     /* position: relative; */
 
