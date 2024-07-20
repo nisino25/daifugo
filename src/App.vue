@@ -69,7 +69,10 @@
                     <span>#{{ roomCode }}</span>
                     <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >階段</span>
                     <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >革命</span>
-                    <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
+                    <div style="display: flex; justify-content: space-between; width: 100%">
+                      <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
+                      <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa fa-refresh" aria-hidden="true"></i>
+                    </div>
                   </div>
 
                 </div>
@@ -93,7 +96,7 @@
                       />
                     </template>
 
-                    <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer ? 'translate(-50%,-150%)' : 'translate(-50%,0%)',}">
+                    <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer ? 'translate(-50%,-125%)' : 'translate(-50%,0%)',}">
                       <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
                       <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">キャンセル</button>
                       <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
@@ -334,6 +337,29 @@ export default {
       // --------------------------------------------------------------------
       let wasPreviousRevolution = this.previousCards.length === 4 && this.previousCards.every(card => card.value === this.previousCards[0].value);
 
+      if(wasPreviousRevolution){
+        // Check if all cards are the same value
+        const sameCardCheck = this.yourPlayerPickedHands.every(
+          card => card.value === this.yourPlayerPickedHands[0].value
+        );
+
+        if(sameCardCheck){
+          // simple case
+          const previousValue = this.isRevolutionGoing ? this.previousCards[0].revolutionValue : this.previousCards[0].value;
+          const currentValue = this.isRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue : this.yourPlayerPickedHands[0].value;
+  
+          if (currentValue <= previousValue) {
+            return false;
+          }
+
+          return true
+        }
+
+        // stairs
+
+        // revolution
+      }
+
       // Stairs (isStairsGoing)
       if (this.isStairsGoing) {
           // Check if current cards form a sequence (階段) and length is not less than the previous cards
@@ -413,8 +439,15 @@ export default {
     sleep(ms) {
       return new Promise(resolve => setTimeout(resolve, ms));
     },
-    reloadPage(){
-      location.reload();
+    reloadPage() {
+      if (confirm('Are you sure you want to reload the page?')) {
+        location.reload();
+      }
+    },
+    resetGame() {
+      if (confirm('Are you sure you want to reset the page?')) {
+        this.closeTheRoom()
+      }
     },
     shuffleArray(array) {
       for (let i = array.length - 1; i > 0; i--) {
@@ -685,11 +718,13 @@ export default {
         this.isStairsGoing = true;
       }
 
+      const tempArr = this.yourPlayerPickedHands
+
       this.yourPlayerPickedHands.forEach(card => {
         card.isPicked = false
         card.location = 'publicArea'
         card.updatedAt = currentTime;
-        const maxDeg = 10;
+        const maxDeg = 5;
 
         // Generate a random integer between minDeg and maxDeg
         const randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
@@ -697,7 +732,7 @@ export default {
         card.rotation = randomRotation
 
         card.verticalPosition = Math.floor(Math.random() * (45 - 5 + 1)) + 5;
-        card.horizontalPosition = Math.floor(Math.random() * (65 - 5 + 1)) + 5;
+        card.horizontalPosition = Math.floor(Math.random() * (60 - 5 + 1)) + 5;
       });
 
       
@@ -705,8 +740,20 @@ export default {
       // console.log(this.publicPile)
 
       if(this.yourPlayerHands.length == 0) this.winner = this.yourPlayer.name
+
       
-      this.goToNextPlayer()
+
+      await this.updatingData()
+
+      // 8giri
+
+      if(tempArr[tempArr.length - 1].value == 8){
+        await this.sleep(1000)
+        this.clearPublicPile()
+        await this.updatingData()
+      }
+      
+      await this.goToNextPlayer()
       await this.updatingData()
 
     },
@@ -775,9 +822,8 @@ export default {
         players: this.players,
         onlineStatus: 'waiting',
         deck: this.deck,
-        isStairsGoing: false,
-        isRevolutionGoing: false
-
+        isStairsGoing: this.isStairsGoing,
+        isRevolutionGoing: this.isRevolutionGoing,
       })
       
       // this.onlineStatus = 'waiting'
@@ -868,16 +914,23 @@ export default {
       this.currentPlayerIndex = 0;
       this.currentPage = 'game';
 
+      this.winner = null
+      this.isStairsGoing = false
+      this.isRevolutionGoing = false
+
       await this.initializeDeck()
 
       // alert(this.deck.length)
 
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
+        winner: this.winner,
         deck: this.deck,
         players: this.players,
         onlineStatus: 'playing',
         currentPlayerIndex: 0,
+        isStairsGoing: this.isStairsGoing,
+        isRevolutionGoing: this.isRevolutionGoing,
       })
 
       await this.distributeCards()
@@ -1275,7 +1328,7 @@ export default {
   }
 
   .playerInfo span{
-    font-size: 1.2em;
+    font-size: 1.7em;
     line-height: 2;
   }
 

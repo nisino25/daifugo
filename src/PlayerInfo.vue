@@ -9,7 +9,7 @@
         <!-- <img src="" alt=""> -->
       </div>
     </div>
-    <span>{{hand.length}}枚</span>
+    <span :style="{ color: hand.length <= 5 ? 'crimson' : 'white' }">{{ hand.length }}枚</span>
   </div>
 </template>
 
