@@ -40,75 +40,90 @@
 
       <div v-if="currentPage === 'game'">
         <div class="main-container">
-              <div class="area-container">
+          <div class="area-container">
 
-                <div class="other-players-area">
-                  <template v-for="otherPlayer in getOtherPlayers()" :key="otherPlayer.name">                  
-                    <PlayerInfo
-                      :player="otherPlayer"
-                      :isActive="otherPlayer == currentPlayer"
-                      :hand="playerHands(otherPlayer.name)"
-                    />
-                    
-                  </template>
-                </div>
+            <div class="other-players-area">
+              <template v-for="otherPlayer in getOtherPlayers()" :key="otherPlayer.name">                  
+                <PlayerInfo
+                  :player="otherPlayer"
+                  :isActive="otherPlayer == currentPlayer && onlineStatus == 'playing'"
+                  :hand="playerHands(otherPlayer.name)"
+                />
+                
+              </template>
+            </div>
 
-                <div class="public-area">
+            <div class="public-area">
 
-                  <div class="public-cards-container">
-                    <template v-for="(group, groupIndex) in groupedPublicPile" :key="groupIndex">
-                      <div class="timestamp-group" :style="getGroupCardStyle(group[0])" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
-                        <template v-for="(card,cardIndex) in group" :key="card.id">
-                          <GameCard :card="card" @click="pickCard(yourPlayer.name, card)" :style="getGap(cardIndex,group)" />
-                        </template>
-                      </div>
+              <div class="public-cards-container">
+                <template v-for="(group, groupIndex) in groupedPublicPile" :key="groupIndex">
+                  <div class="timestamp-group" :style="getGroupCardStyle(group[0])" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
+                    <template v-for="(card,cardIndex) in group" :key="card.id">
+                      <GameCard :card="card" @click="pickCard(yourPlayer.name, card)" :style="getGap(cardIndex,group)" />
                     </template>
                   </div>
+                </template>
+              </div>
 
-                  <div class="detailed-area">
-                    <span>#{{ roomCode }}</span>
-                    <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >階段</span>
-                    <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >革命</span>
-                    <div style="display: flex; justify-content: space-around; width: 100%">
-                      <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
-                      <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa-solid fa-right-left"></i>
-                    </div>
-                  </div>
-
+              <div class="detailed-area">
+                <span>#{{ roomCode }}</span>
+                <span class="status-badge" style="background: #3581B8;">{{ onlineStatus }}</span>
+                <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >階段</span>
+                <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >革命</span>
+                <div style="display: flex; justify-content: space-around; width: 100%">
+                  <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
+                  <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa-solid fa-trash"></i>
                 </div>
+              </div>
 
-                <div class="personal-area">
+            </div>
 
-                  <PlayerInfo
-                    :player="yourPlayer"
-                    :isActive="yourPlayer === currentPlayer"
-                    :hand="playerHands(yourPlayer.name)"
+            <div class="personal-area">
+
+              <PlayerInfo
+                :player="yourPlayer"
+                :isActive="yourPlayer == currentPlayer && onlineStatus == 'playing'"
+                :hand="playerHands(yourPlayer.name)"
+              />
+
+              <div class="personal-cards-container">
+                
+                <template v-for="(card, index) in playerHands(yourPlayer.name)" :key="card.id">
+                  <GameCard
+                    :class="{ 'card-mask': currentPlayer !== yourPlayer || onlineStatus !== 'playing' }" 
+                    :card="card"
+                    :style="calculateCardPosition(index, yourPlayerHands.length, card)"
+                    @click="pickCard(yourPlayer.name, card)"
                   />
+                </template>
 
-                  <div class="personal-cards-container">
-                    
-                    <template v-for="(card, index) in playerHands(yourPlayer.name)" :key="card.id">
-                      <GameCard
-                        :class="{ 'card-mask': currentPlayer !== yourPlayer }" 
-                        :card="card"
-                        :style="calculateCardPosition(index, yourPlayerHands.length, card)"
-                        @click="pickCard(yourPlayer.name, card)"
-                      />
-                    </template>
-
-                    <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer ? 'translate(-50%,-125%)' : 'translate(-50%,0%)',}">
-                      <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
-                      <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">キャンセル</button>
-                      <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
-                    </div>
-
-                  </div>
-
-
+                <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer && onlineStatus == 'playing' ? 'translate(-50%,-125%)' : 'translate(-50%,0%)'}">
+                  <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
+                  <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">キャンセル</button>
+                  <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
                 </div>
 
               </div>
+
+
             </div>
+
+          </div>
+        </div>
+
+
+        <div class="moving-cards-container">
+            <template v-for="card in movingCards" :key="card.id">
+              <GameCard
+                :card="card"
+                :style="{ 
+                  left: card.currentX + 'px', 
+                  top: card.currentY + 'px', 
+                  transform: 'rotate(' + card.rotation + 'deg)'
+                }"
+              />
+            </template>
+          </div>
       </div>
 
     </div>
@@ -156,6 +171,7 @@ export default {
 
       username: null,
       winner: null,
+      onlineStatus: '',
 
 
 
@@ -170,6 +186,24 @@ export default {
     },
     currentPlayer() {
       return this.players[this.currentPlayerIndex];
+    },
+    currentPlayerHands() {
+      return this.deck
+        .filter(card => card.location === this.currentPlayer?.name)
+        .sort((a, b) => {
+          const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
+          const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
+
+          // First, sort by value or revolutionValue
+          const valueComparison = valueA - valueB;
+          if (valueComparison !== 0) {
+            return valueComparison;
+          }
+
+          // Then, sort by suit
+          const suitOrder = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+          return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
+        });
     },
     drawPile() {
       return this.deck.filter(card => card.location === 'drawPile');
@@ -299,6 +333,10 @@ export default {
           const suitOrder = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
           return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
         });
+    },
+
+    movingCards() {
+      return this.deck.filter(card => card.location === 'moving');
     },
     
     readyToSubmit() {
@@ -519,6 +557,24 @@ export default {
           }
         }
       }
+      
+
+
+      this.currentPlayerIndex = 0
+      for(let player of this.players){
+        for (let card of this.deck) {
+
+          if (card.location == player.name &&card.suit === 'Diamonds' && card.value === 3) {
+            this.onlineStatus = 'playing'
+            this.updatingData()
+            return; // Correctly breaking out of the loop
+          }
+
+        }
+
+        this.currentPlayerIndex++
+      }
+
     },
     goToGamePage() {
       if (!this.readyToPlay) return;
@@ -570,9 +626,9 @@ export default {
         if (pickedTotal === 1) {
           return {
             left: `50%`,
-            top: `0%`,
+            top: `-60%`,
             zIndex: 100,
-            transform: `translateY(-120%)`
+            // transform: `translateY(-120%)`
           };
         }
 
@@ -720,24 +776,71 @@ export default {
 
       this.yourPlayerPickedHands.forEach(card => {
         card.isPicked = false
-        card.location = 'publicArea'
+        
         card.updatedAt = currentTime;
-        const maxDeg = 5;
+        const maxDeg = 2.5;
 
         // Generate a random integer between minDeg and maxDeg
         const randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
 
         card.rotation = randomRotation
 
+
+        const elementId = `card-${card.id}`;
+        const cardElement = document.getElementById(elementId);
+
+        const rect = cardElement.getBoundingClientRect();
+        card.currentX = rect.left;
+        card.currentY = rect.top;
+
+
         card.verticalPosition = Math.floor(Math.random() * (45 - 5 + 1)) + 5;
         card.horizontalPosition = Math.floor(Math.random() * (60 - 5 + 1)) + 5;
+
+        card.location = 'moving'
+
+        console.log(card)
       });
+
+      await this.updatingData()
+
+      await this.sleep(250)
+
+      // -----------------------------------------
+      const container = document.querySelector('.public-area .public-cards-container');
+      // if (!container) return null;
+
+      const containerRect = container.getBoundingClientRect();
+
+      for (let card of this.deck) {
+        if (card.location === 'moving') {
+          card.currentX = containerRect.left + (containerRect.width * (card.horizontalPosition / 100));
+          card.currentY = containerRect.top + (containerRect.height * (card.verticalPosition / 100));
+
+          console.log(card)
+        }
+      }
+
+      
+
+      // -----------------------------------------
+      await this.updatingData()
+      await this.sleep(750)
+
+      for(let card of this.deck){
+        if(card.location == 'moving'){
+          card.location = 'publicArea'
+        }
+      }
 
       
 
       // console.log(this.publicPile)
 
-      if(this.yourPlayerHands.length == 0) this.winner = this.yourPlayer.name
+      if(this.yourPlayerHands.length == 0) {
+        this.winner = this.yourPlayer.name
+        this.onlineStatus = 'gameOver'
+      }
 
       
 
@@ -778,7 +881,7 @@ export default {
       const translateX = cardIndex * 20;
 
       // Calculate the rotation value based on the card's index, starting from -15 and incrementing by 10
-      const initialRotation = -20;
+      const initialRotation = 0;
       const rotation = initialRotation + cardIndex * 7.5;
 
       return {
@@ -873,7 +976,7 @@ export default {
         this.players = doc.data()?.players
         
 
-        if(this.onlineStatus == 'playing') {
+        if(this.onlineStatus == 'playing' || this.onlineStatus == 'distributing') {
           this.deck = doc.data().deck
 
           this.winner = doc.data().winner
@@ -908,9 +1011,11 @@ export default {
     },
 
     async closeTheRoom(){
+
       if(this.players.length <2) return
 
       this.shuffleArray(this.players)
+
       // Logic to start the game
 
       // Reset the current player index
@@ -922,31 +1027,36 @@ export default {
       this.isRevolutionGoing = false
 
       this.deck = []
+
       await this.initializeDeck()
 
-      // alert(this.deck.length)
-
+      this.onlineStatus = 'distributing'
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
         winner: this.winner,
         deck: this.deck,
         players: this.players,
-        onlineStatus: 'playing',
-        currentPlayerIndex: 0,
+        onlineStatus: this.onlineStatus,
+        currentPlayerIndex: this.currentPlayerIndex,
         isStairsGoing: this.isStairsGoing,
         isRevolutionGoing: this.isRevolutionGoing,
       })
 
-      await this.distributeCards()
+      
 
-      console.log('done closing room ----------------')
+      await this.distributeCards()
 
     },
     updatingData(){
+      // if(!this.yourPlayer.isHost && this.onlineStatus == 'distributing') {
+      //   console.log(this.onlineStatus + ' ' + this.yourPlayer.name)
+      //   return 
+      // } 
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
         lastSubmitBy: this.lastSubmitBy,
         deck: this.deck,
+        onlineStatus: this.onlineStatus,
         winner: this.winner,
         currentPlayerIndex: this.currentPlayerIndex,
         isStairsGoing: this.isStairsGoing,
@@ -1017,15 +1127,13 @@ export default {
     margin: 0;
   }
 
-  html,body,#app {
+  html, body {
+    overflow: hidden;
     height: 100%;
     margin: 0;
     padding: 0;
 
-    overflow: hidden;
-
     font-family: 'Noto Sans JP', sans-serif;
-
     background: #13563B;
   }
 
@@ -1332,7 +1440,7 @@ export default {
   }
 
   .playerInfo span{
-    font-size: 1.7em;
+    font-size: 1.5em;
     line-height: 2;
   }
 
@@ -1404,7 +1512,7 @@ export default {
   /* ---------------------------------------- */
   .public-area{
     display: grid !important;
-    grid-template-columns: calc(70% - 10px) calc(30% - 10px);
+    grid-template-columns: calc(65% - 10px) calc(35% - 10px);
     justify-content: space-between;
 
     background: unset !important;
@@ -1458,7 +1566,7 @@ export default {
     display: block;
     width: 100%;
     margin: 0 auto;
-    padding: 5px 0;
+    padding: 5px;
     background: #DAA520;
     border-radius: 5px;
     color: black;
@@ -1483,4 +1591,11 @@ export default {
     display: flex;
     justify-content: space-between;
   }
+
+  .moving-cards-container .gameCard{
+    position: fixed;
+    transition: all .5s ease-in-out;
+    
+  }
+
 </style>

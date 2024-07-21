@@ -1,5 +1,5 @@
 <template>
-  <div class="gameCard">
+  <div class="gameCard" :id="'card-'+card.id">
     <div class="card-info">
       <div :class="['suit-icon', `suit-${card.suit}`]"></div>
       <span :class="{'vertical-text': card.rank == 'Joker'}">{{ card.rank }}</span>
