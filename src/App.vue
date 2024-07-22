@@ -840,7 +840,7 @@ export default {
 
       // -----------------------------------------
       await this.updatingData()
-      await this.sleep(750)
+      await this.sleep(500)
 
       for(let card of this.deck){
         if(card.location == 'moving'){
@@ -970,6 +970,7 @@ export default {
         // joining room and wait until it closes
         // if(this.currentPage == 'before'){
         this.onlineStatus = doc.data()?.onlineStatus
+        this.winner = doc.data()?.winner
         this.players = doc.data()?.players
         
 
@@ -993,6 +994,8 @@ export default {
           this.isStairsGoing = doc.data().isStairsGoing
           this.isRevolutionGoing = doc.data().isRevolutionGoing
         }
+
+        if(this.winner) alert(`The game is over ${this.winner} won!`)
         
         // if(!this.players.includes(this.username)){
         //   this.joinARoom()
@@ -1609,9 +1612,8 @@ export default {
 
   .public-area .detailed-area .status-badge{
     display: block;
-    width: 100%;
     margin: 0 auto;
-    padding: 2.5px 5px;
+    padding: 2.5px 15px;
     background: #DAA520;
     border-radius: 5px;
     color: black;
