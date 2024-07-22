@@ -774,8 +774,8 @@ export default {
       let randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
 
 
-      const vertRandom = Math.floor(Math.random() * (55 - 5 + 1)) + 5;
-      const horzRandom = Math.floor(Math.random() * (60 - 5 + 1)) + 5;
+      const vertRandom = Math.floor(Math.random() * (50 - 5 + 1)) + 5;
+      const horzRandom = Math.floor(Math.random() * (65 - 5 + 1)) + 5;
       let tempZindex = 0
 
       this.yourPlayerPickedHands.forEach(card => {
@@ -874,7 +874,7 @@ export default {
       if(card.location == 'trash'){
         return `
           top: ${card.verticalPosition}%;
-          left: ${card.horizontalPosition - 100}%;
+          left: ${card.horizontalPosition - 125}%;
           transform: rotate(${card.rotation}deg) translateX(${card.translateX}px);
           zIndex: ${card.zIndex};
         `;
@@ -1478,6 +1478,8 @@ export default {
   .playerInfo span{
     font-size: 1.5em;
     line-height: 2;
+
+    font-weight: bold;
   }
 
   /* ---------------------------------------- */
@@ -1600,6 +1602,8 @@ export default {
     box-sizing: border-box;
 
     text-align: center;
+
+    font-size: .9em;
   }
   
 
@@ -1607,7 +1611,7 @@ export default {
     display: block;
     width: 100%;
     margin: 0 auto;
-    padding: 5px;
+    padding: 2.5px 5px;
     background: #DAA520;
     border-radius: 5px;
     color: black;
