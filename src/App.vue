@@ -425,7 +425,7 @@ export default {
       // Default regular checking
 
       // Check stairs
-      if (this.yourPlayerPickedHands.length >= this.previousCards.length && this.yourPlayerPickedHands.length > 3) {
+      if (this.yourPlayerPickedHands.length >= this.previousCards.length && this.yourPlayerPickedHands.length >= 3) {
           let stairCheck = true;
           const tempSuit = this.yourPlayerPickedHands[0].suit;
           let tempValue = this.isRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue + 1 : this.yourPlayerPickedHands[0].value - 1;
@@ -841,6 +841,7 @@ export default {
       // -----------------------------------------
       await this.updatingData()
       await this.sleep(500)
+      // await this.sleep(20000)
 
       for(let card of this.deck){
         if(card.location == 'moving'){
@@ -874,7 +875,7 @@ export default {
       if(card.location == 'trash'){
         return `
           top: ${card.verticalPosition}%;
-          left: ${card.horizontalPosition - 125}%;
+          left: ${card.horizontalPosition - 150}%;
           transform: rotate(${card.rotation}deg) translateX(${card.translateX}px);
           zIndex: ${card.zIndex};
         `;
@@ -970,8 +971,13 @@ export default {
         // joining room and wait until it closes
         // if(this.currentPage == 'before'){
         this.onlineStatus = doc.data()?.onlineStatus
-        this.winner = doc.data()?.winner
+        // this.winner = doc.data()?.winner
         this.players = doc.data()?.players
+
+        if(!this.winner && doc.data()?.winner){
+          this.winner = doc.data()?.winner
+          alert(`The game is over ${this.winner} won!`)
+        } 
         
 
         if(this.onlineStatus == 'playing' || this.onlineStatus == 'distributing') {
@@ -991,11 +997,11 @@ export default {
           this.currentPage = 'game'
           localStorage.setItem('latestRoomCode', null);
 
+          
           this.isStairsGoing = doc.data().isStairsGoing
           this.isRevolutionGoing = doc.data().isRevolutionGoing
         }
 
-        if(this.winner) alert(`The game is over ${this.winner} won!`)
         
         // if(!this.players.includes(this.username)){
         //   this.joinARoom()
@@ -1095,7 +1101,7 @@ export default {
         style = {
           left: card.currentX + 'px', 
           top: card.currentY + 'px', 
-          transform: 'rotate(' + card.rotation + 'deg)',
+          transform: `rotate(${card.rotation}deg) translateX(${card.translateX}px)`,
           width : card.width + 'px',
           zIndex: card.zIndex,
         }
