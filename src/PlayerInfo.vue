@@ -1,5 +1,5 @@
 <template>
-  <div class="playerInfo">
+  <div class="playerInfo" :id="'player-'+player.name">
     <div class="player-box" :class="{ active: isActive }">
       <div class="name-container">
         <p>{{ player.name }}</p>

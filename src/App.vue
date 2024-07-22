@@ -57,9 +57,9 @@
 
               <div class="public-cards-container">
                 <template v-for="(group, groupIndex) in groupedPublicPile" :key="groupIndex">
-                  <div class="timestamp-group" :style="getGroupCardStyle(group[0])" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
-                    <template v-for="(card,cardIndex) in group" :key="card.id">
-                      <GameCard :card="card" @click="pickCard(yourPlayer.name, card)" :style="getGap(cardIndex,group)" />
+                  <div class="timestamp-group" :class="[{ 'previous-card': !previousCards.includes(group[0]) }]">
+                    <template v-for="(card) in group" :key="card.id">
+                      <GameCard :card="card" :style="getPileCardLocation(card)" />
                     </template>
                   </div>
                 </template>
@@ -114,14 +114,7 @@
 
         <div class="moving-cards-container">
             <template v-for="card in movingCards" :key="card.id">
-              <GameCard
-                :card="card"
-                :style="{ 
-                  left: card.currentX + 'px', 
-                  top: card.currentY + 'px', 
-                  transform: 'rotate(' + card.rotation + 'deg)'
-                }"
-              />
+              <GameCard :card="card" :style="getMovingCardLocation(card)"/>
             </template>
           </div>
       </div>
@@ -774,32 +767,48 @@ export default {
 
       const tempArr = this.yourPlayerPickedHands
 
+      
+      // Generate a random integer between minDeg and maxDeg
+
+      const maxDeg = 2.5;
+      let randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
+
+
+      const vertRandom = Math.floor(Math.random() * (55 - 5 + 1)) + 5;
+      const horzRandom = Math.floor(Math.random() * (60 - 5 + 1)) + 5;
+      let tempZindex = 0
+
       this.yourPlayerPickedHands.forEach(card => {
         card.isPicked = false
         
         card.updatedAt = currentTime;
-        const maxDeg = 2.5;
 
-        // Generate a random integer between minDeg and maxDeg
-        const randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
+        card.rotation = 0
 
-        card.rotation = randomRotation
 
+        
+
+        card.submitedBy = this.yourPlayer.name
 
         const elementId = `card-${card.id}`;
         const cardElement = document.getElementById(elementId);
 
         const rect = cardElement.getBoundingClientRect();
+
         card.currentX = rect.left;
         card.currentY = rect.top;
+        card.width = cardElement.offsetWidth;
+        card.hasDestination = false;
+        card.translateX = 0;
+        card.zIndex = tempZindex;
+        tempZindex++
 
 
-        card.verticalPosition = Math.floor(Math.random() * (45 - 5 + 1)) + 5;
-        card.horizontalPosition = Math.floor(Math.random() * (60 - 5 + 1)) + 5;
+
+        card.verticalPosition = vertRandom
+        card.horizontalPosition = horzRandom
 
         card.location = 'moving'
-
-        console.log(card)
       });
 
       await this.updatingData()
@@ -812,13 +821,19 @@ export default {
 
       const containerRect = container.getBoundingClientRect();
 
-      for (let card of this.deck) {
-        if (card.location === 'moving') {
-          card.currentX = containerRect.left + (containerRect.width * (card.horizontalPosition / 100));
-          card.currentY = containerRect.top + (containerRect.height * (card.verticalPosition / 100));
+      let originLeft = 0
+      for (let tempCard of tempArr) {
+        const deckCard = this.deck.find(card => card.id === tempCard.id);
+        deckCard.hasDestination = true
+        deckCard.currentX = containerRect.left + (containerRect.width * (deckCard.horizontalPosition / 100));
+        deckCard.currentY = containerRect.top + (containerRect.height * (deckCard.verticalPosition / 100));
 
-          console.log(card)
-        }
+
+        deckCard.translateX = originLeft
+        originLeft = originLeft + 20
+
+        deckCard.rotation = randomRotation
+        randomRotation = randomRotation + 7.5
       }
 
       
@@ -835,19 +850,15 @@ export default {
 
       
 
-      // console.log(this.publicPile)
-
+      // check the gamewinner
       if(this.yourPlayerHands.length == 0) {
         this.winner = this.yourPlayer.name
         this.onlineStatus = 'gameOver'
       }
 
-      
-
       await this.updatingData()
 
       // 8giri
-
       if(tempArr[tempArr.length - 1].value == 8){
         await this.sleep(1000)
         this.clearPublicPile()
@@ -855,39 +866,25 @@ export default {
         return
       }
 
-      // for(let i in this.players.length){
-      //   await this.goToNextPlayer()
-      // }
-      
       await this.goToNextPlayer()
       await this.updatingData()
 
     },
-    getGroupCardStyle(card) {
-      let leftPosition = card.horizontalPosition;
-
-      if (card.location === 'trash') {
-        leftPosition = -100;
+    getPileCardLocation(card){
+      if(card.location == 'trash'){
+        return `
+          top: ${card.verticalPosition}%;
+          left: ${card.horizontalPosition - 100}%;
+          transform: rotate(${card.rotation}deg) translateX(${card.translateX}px);
+          zIndex: ${card.zIndex};
+        `;
       }
-
       return `
         top: ${card.verticalPosition}%;
-        left: ${leftPosition}%;
-        transform: rotate(${card.rotation}deg);
+        left: ${card.horizontalPosition}%;
+        transform: rotate(${card.rotation}deg) translateX(${card.translateX}px);
+        zIndex: ${card.zIndex};
       `;
-    },
-    getGap(cardIndex) {
-      // Calculate the translateX value based on the card's index
-      const translateX = cardIndex * 20;
-
-      // Calculate the rotation value based on the card's index, starting from -15 and incrementing by 10
-      const initialRotation = 0;
-      const rotation = initialRotation + cardIndex * 7.5;
-
-      return {
-        zIndex: cardIndex,
-        transform: `translateX(${translateX}px) rotate(${rotation}deg)`,
-      };
     },
 
     // -------------
@@ -1063,6 +1060,45 @@ export default {
         isRevolutionGoing: this.isRevolutionGoing
       })
 
+    },
+
+    getMovingCardLocation(card){
+      let style
+
+      if(card.submitedBy == this.yourPlayer.name){
+        style = {
+          left: card.currentX + 'px', 
+          top: card.currentY + 'px', 
+          transform: `rotate(${card.rotation}deg) translateX(${card.translateX}px)`,
+          width : card.width + 'px',
+          zIndex: card.zIndex,
+        }
+      }else if(card.hasDestination == false){
+        const landingContainer = document.querySelector(`#player-${card.submitedBy}`);
+        const landingContainerRect = landingContainer.getBoundingClientRect();
+
+        card.currentX = landingContainerRect.left + (landingContainerRect.width / 2);
+        card.currentY = landingContainerRect.top + (landingContainerRect.height / 2);
+          
+
+        style = {
+          left: card.currentX + 'px', 
+          top: card.currentY + 'px',
+          width : '0px',
+          height: '0px',
+          zIndex: card.zIndex,
+        }
+      }else{
+        style = {
+          left: card.currentX + 'px', 
+          top: card.currentY + 'px', 
+          transform: 'rotate(' + card.rotation + 'deg)',
+          width : card.width + 'px',
+          zIndex: card.zIndex,
+        }
+      }
+
+      return style
     },
 
   },
@@ -1534,20 +1570,25 @@ export default {
   
   .public-area .public-cards-container .timestamp-group{
     position: absolute;
+    width: 100%;
+    height: 100%
+    /* position: absolute;
     width: 57px;
     aspect-ratio: 5 / 8;
 
-    transition: all .5s ease-in-out;
+    transition: all .5s ease-in-out; */
   }
 
   .public-area .public-cards-container .gameCard{
     position: absolute;
+
+    transition: all .5s ease-in-out;
     
   }
 
   .public-area .public-cards-container .previous-card{
     /* opacity: .5; */
-    filter: grayscale(100%) brightness(50%);
+    filter: brightness(50%);
   }
 
   .public-area .detailed-area{
@@ -1595,7 +1636,10 @@ export default {
   .moving-cards-container .gameCard{
     position: fixed;
     transition: all .5s ease-in-out;
+    box-sizing: border-box;
     
+    width: 62px;
+    height: 102px;
   }
 
 </style>
