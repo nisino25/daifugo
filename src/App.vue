@@ -97,7 +97,7 @@
                   />
                 </template>
 
-                <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer && onlineStatus == 'playing' ? 'translate(-50%,-125%)' : 'translate(-50%,0%)'}">
+                <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer && onlineStatus == 'playing' && movingCards.length == 0 ? 'translate(-50%,-125%)' : 'translate(-50%,0%)'}">
                   <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
                   <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">キャンセル</button>
                   <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
@@ -687,11 +687,17 @@ export default {
       const maxRotation = -1 * minRotation;
       const rotationStep = (maxRotation - minRotation) / (totalCards - 1);
       const rotation = minRotation + rotationStep * index;
+
+      let transformStyle = `translateX(-50%)   rotate(${rotation}deg)`
+
+      if(totalCards <= 15) transformStyle = `translateX(-50%) translateY(-25%) rotate(${rotation}deg)`
+
+      if(totalCards <= 10) transformStyle = `translateX(-50%) translateY(-50%) rotate(${rotation}deg)`
       
       return {
         left: `calc(50% + ${x}px)`,
         top: `calc(80% - ${y}px)`,
-        transform: `translateX(-50%) rotate(${rotation}deg)`
+        transform: transformStyle
       };
     
 
@@ -814,6 +820,7 @@ export default {
       await this.updatingData()
 
       await this.sleep(250)
+      // await this.sleep(25000)
 
       // -----------------------------------------
       const container = document.querySelector('.public-area .public-cards-container');
@@ -840,8 +847,7 @@ export default {
 
       // -----------------------------------------
       await this.updatingData()
-      await this.sleep(500)
-      // await this.sleep(20000)
+      await this.sleep(550)
 
       for(let card of this.deck){
         if(card.location == 'moving'){
@@ -855,6 +861,7 @@ export default {
       if(this.yourPlayerHands.length == 0) {
         this.winner = this.yourPlayer.name
         this.onlineStatus = 'gameOver'
+        alert('You won the game!')
       }
 
       await this.updatingData()
@@ -1098,9 +1105,16 @@ export default {
           zIndex: card.zIndex,
         }
       }else{
+        const landingContainer = document.querySelector(`.public-cards-container`);
+        const landingContainerRect = landingContainer.getBoundingClientRect();
+
+        card.currentX = landingContainerRect.left + (landingContainerRect.width * (card.horizontalPosition / 100));
+        card.currentY = landingContainerRect.top + (landingContainerRect.height * (card.verticalPosition / 100));
+          
+
         style = {
           left: card.currentX + 'px', 
-          top: card.currentY + 'px', 
+          top: card.currentY + 'px',
           transform: `rotate(${card.rotation}deg) translateX(${card.translateX}px)`,
           width : card.width + 'px',
           zIndex: card.zIndex,
@@ -1478,7 +1492,8 @@ export default {
   .playerInfo .player-image-container .temp-image{
     display: block;
     margin: auto;
-    width: calc(100% - 2px);
+    /* width: calc(100% - 2px); */
+    width: 100;
     aspect-ratio: 1;
 
     background: #87A96B;
@@ -1486,7 +1501,7 @@ export default {
 
   .playerInfo span{
     font-size: 1.5em;
-    line-height: 2;
+    line-height: 1.5;
 
     font-weight: bold;
   }
@@ -1581,8 +1596,12 @@ export default {
   
   .public-area .public-cards-container .timestamp-group{
     position: absolute;
+    display: block;
     width: 100%;
     height: 100%
+    /* 
+    width: 100%;
+    height: 100% */
     /* position: absolute;
     width: 57px;
     aspect-ratio: 5 / 8;
