@@ -496,7 +496,12 @@ export default {
     },
     addPlayer() {
       const randomName = this.getRandomName();
-      this.players.push({ name: randomName });
+      const avatarData = this.generateAvatar();
+      console.log(avatarData.randomString)
+      this.players.push({
+        name: randomName,
+        randomString: avatarData.randomString 
+      });
     },
     removePlayer(index) {
       this.players.splice(index, 1);
@@ -612,6 +617,7 @@ export default {
 
     
     calculateCardPosition(index, totalCards, card) {
+      if(this.onlineStatus == 'distributing') totalCards = this.deck.length / this.players.length
       if (card?.isPicked) {
         const pickedIndex = this.yourPlayerPickedHands.findIndex(c => c.id === card.id);
         const pickedTotal = this.yourPlayerPickedHands.length;
@@ -896,6 +902,14 @@ export default {
     },
 
     // -------------
+    
+    generateAvatar() {
+      const randomString = Math.random().toString();
+      return {
+          avatar: window.multiavatar(randomString),
+          randomString: randomString
+      };
+    },
     randomName(){
       this.username = this.getRandomName();
     },
@@ -921,8 +935,9 @@ export default {
       this.roomCode = this.tempRoomcode
       localStorage.setItem('latestRoomCode', this.roomCode)
       
+      const avatarData = this.generateAvatar();
+      this.players.push({name:this.username, isHost:true,randomString: avatarData.randomString})
 
-      this.players.push({name:this.username, isHost:true})
       localStorage.userName = this.userName
 
       // console.log('sending data')
@@ -953,7 +968,8 @@ export default {
           this.players = doc.data().players;
           this.onlineStatus = doc.data().players;
 
-          if (!this.players.includes(this.username)) this.players.push({name:this.username, isHost:false});
+          const avatarData = this.generateAvatar();
+          if (!this.players.includes(this.username)) this.players.push({name:this.username, isHost:false,randomString:  avatarData.randomString});
           this.roomCode = this.tempRoomcode
 
           await docRef.update({
@@ -1493,8 +1509,11 @@ export default {
     display: block;
     margin: auto;
     /* width: calc(100% - 2px); */
-    width: 100;
+    width: 100%;
+    padding: 5px;
     aspect-ratio: 1;
+
+    box-sizing: border-box;
 
     background: #87A96B;
   }

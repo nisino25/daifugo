@@ -5,8 +5,10 @@
         <p>{{ player.name }}</p>
       </div>
       <div class="player-image-container">
-        <div class="temp-image"></div>
-        <!-- <img src="" alt=""> -->
+        <div class="temp-image">
+          <div v-html="regenerate(player.randomString)"></div>
+        </div>
+        
       </div>
     </div>
     <span :style="{ color: hand.length <= 5 ? '#FF2400' : 'white' }">{{ hand.length }}枚</span>
@@ -27,6 +29,11 @@ export default {
     hand: {
       type: Array,
       required: true
+    },
+  },
+  methods: {
+    regenerate(randomString) {
+      return window.multiavatar(randomString);
     },
   }
 };
