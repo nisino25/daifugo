@@ -867,10 +867,11 @@ export default {
       if(this.yourPlayerHands.length == 0) {
         this.winner = this.yourPlayer.name
         this.onlineStatus = 'gameOver'
-        alert('You won the game!')
       }
 
       await this.updatingData()
+
+      if(this.yourPlayerHands.length == 0) alert('You won the game!')
 
       // 8giri
       if(tempArr[tempArr.length - 1].value == 8){
