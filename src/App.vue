@@ -27,7 +27,7 @@
           </template>
 
           <template v-if="roomOption && roomCode">
-            <h2>Welcome！ {{ username }}</h2>
+            <h2>Welcome {{ username }}!</h2>
             <p>Room code is: <strong>{{ roomCode }}</strong></p>
             <hr>
             <template v-for="(player, index) in players" :key="index">
@@ -69,7 +69,7 @@
                 <span>#{{ roomCode }}</span>
                 <span class="status-badge" style="background: #3581B8;">{{ onlineStatus }}</span>
                 <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >stairs</span>
-                <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >revolution</span>
+                <span class="status-badge" style="background: crimson; color: white;" :class="{ 'undo-badge': !isRevolutionGoing }" >Revolution</span>
                 <div style="display: flex; justify-content: space-around; width: 100%">
                   <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
                   <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa-solid fa-trash"></i>
@@ -78,7 +78,7 @@
 
             </div>
 
-            <div class="personal-area">
+            <div class="personal-area" :class="{ 'player-mask': currentPlayer !== yourPlayer || onlineStatus !== 'playing' }">
 
               <PlayerInfo
                 :player="yourPlayer"
@@ -100,7 +100,7 @@
                 <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer && onlineStatus == 'playing' && movingCards.length == 0 ? 'translate(-50%,-125%)' : 'translate(-50%,0%)'}">
                   <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">pass</button>
                   <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">cancel</button>
-                  <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">submit</button>
+                  <button @click="submit()" style="background: #32de84" :class="{ 'disable-button': !readyToSubmit }">submit</button>
                 </div>
 
               </div>
@@ -869,9 +869,7 @@ export default {
         this.onlineStatus = 'gameOver'
       }
 
-      await this.updatingData()
 
-      if(this.yourPlayerHands.length == 0) alert('You won the game!')
 
       // 8giri
       if(tempArr[tempArr.length - 1].value == 8){
@@ -881,8 +879,11 @@ export default {
         return
       }
 
+      if(this.yourPlayerHands.length == 0) alert('You won the game!')
       await this.goToNextPlayer()
       await this.updatingData()
+
+
 
     },
     getPileCardLocation(card){
@@ -1471,15 +1472,17 @@ export default {
     left: 0;
     width: 100%;
     height: 100%;
-    border: 2px solid #DAA520; /* Change the color as needed */
     box-sizing: border-box; /* Ensure the border is included in the element's size */
     pointer-events: none; /* Ensure the pseudo-element doesn't interfere with interactions */
-    opacity: 0; /* Start with opacity 0 */
     transition: opacity .5s ease-in; /* Smooth transition for the pseudo-element */
+    background-color: rgba(0, 0, 0, 0.5);
+
+    transition: all .3s ease-in-out;
   }
 
   .playerInfo .player-box.active:before {
-    opacity: 1; /* Set opacity to 1 when active */
+    background-color: rgba(0, 0, 0, 0);
+    border: 2px solid #DAA520; /* Change the color as needed */
   }
 
   .playerInfo .name-container {
@@ -1520,8 +1523,8 @@ export default {
   }
 
   .playerInfo span{
-    font-size: 1.5em;
-    line-height: 1.5;
+    font-size: 2em;
+    line-height: 1.25;
 
     font-weight: bold;
   }
@@ -1533,6 +1536,33 @@ export default {
     display: grid !important;
     align-items: flex-end !important;
 
+  }
+
+
+
+  .personal-area::before{
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+
+    width: 100%;
+    height: 100%;
+    background: black;
+    opacity: 0;
+
+    z-index: 1;
+
+    border-radius: 10px;
+
+    transition: all .5s ease-in-out;
+  }
+
+
+
+  .player-mask::before{
+    opacity: .5;
   }
 
   .personal-area .playerInfo{
@@ -1584,7 +1614,7 @@ export default {
   }
 
   .action-buttons-container .disable-button {
-    background-color: #ccc; /* Gray background for disabled state */
+    background-color: #ccc !important; /* Gray background for disabled state */
     color: #666; /* Dark gray text for disabled state */
     cursor: not-allowed; /* Change cursor to not-allowed */
     pointer-events: none; /* Disable all pointer events */
@@ -1594,7 +1624,7 @@ export default {
   /* ---------------------------------------- */
   .public-area{
     display: grid !important;
-    grid-template-columns: calc(65% - 10px) calc(35% - 10px);
+    grid-template-columns: calc(65% - 7.5px) calc(35% - 7.5px);
     justify-content: space-between;
 
     background: unset !important;
@@ -1658,15 +1688,17 @@ export default {
   .public-area .detailed-area .status-badge{
     display: block;
     margin: 0 auto;
-    padding: 2.5px 15px;
+    padding: 5px 10px;
     background: #DAA520;
     border-radius: 5px;
     color: black;
     transition: all .5s ease-in-out;
+
+    filter: brightness(1.2);
   }
 
   .public-area .detailed-area .status-badge.undo-badge{
-    opacity: .5
+    filter: brightness(.5);
   }
 
   /* ---------------------------------------- */
