@@ -11,7 +11,7 @@
         
       </div>
     </div>
-    <span :style="{ color: hand.length <= 5 ? '#FF2400' : 'white' }">{{ hand.length }}枚</span>
+    <span :style="{ color: hand.length <= 5 ? '#FF2400' : 'white' }">{{ hand.length }}</span>
   </div>
 </template>
 

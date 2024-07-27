@@ -7,33 +7,33 @@
           
 
           <div v-if="!roomOption">
-            <button @click="roomOption = 'create'" class="room-button">ルームを作成</button>
+            <button @click="roomOption = 'create'" class="room-button">Create a room</button>
             <hr>
-            <button @click="roomOption = 'join'; retriveCode()" class="start-button">ルームに参加</button>
+            <button @click="roomOption = 'join'; retriveCode()" class="start-button">Join a room</button>
           </div>
 
           <template v-if="roomOption && !roomCode">
-            <h2>プレイヤー名を入力してください</h2>
+            <h2>Type your name</h2>
               <div class="player-input">
                 <input type="text" v-model="username" placeholder="名前を入力">
               </div>
               <div class="player-input" v-if="roomOption === 'join'">
-                <input type="number" v-model="tempRoomcode" placeholder="ルームコードを入力">
+                <input type="number" v-model="tempRoomcode" placeholder="Type room code">
               </div>
               <!-- <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button> -->
-              <button @click="roomOption = null" class="back-button" style="background-color: crimson;">戻る</button>
-              <button v-if="readyToPlay && roomOption === 'create'" @click="createARoom()" class="start-button">部屋を作る</button>
-              <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay && roomOption === 'join'" @click="joinARoom()" class="start-button">参加する</button>
+              <button @click="roomOption = null" class="back-button" style="background-color: crimson;">Back</button>
+              <button v-if="readyToPlay && roomOption === 'create'" @click="createARoom()" class="start-button">Create</button>
+              <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay && roomOption === 'join'" @click="joinARoom()" class="start-button">Join</button>
           </template>
 
           <template v-if="roomOption && roomCode">
-            <h2>ようこそ！ {{ username }}さん</h2>
-            <p><strong>{{ roomCode }}</strong>で待機中。</p>
+            <h2>Welcome！ {{ username }}</h2>
+            <p>Room code is: <strong>{{ roomCode }}</strong></p>
             <hr>
             <template v-for="(player, index) in players" :key="index">
               <p>{{index +1}}.{{ player.name }}</p>
             </template>
-            <button v-if="players?.length >= 2 && yourPlayer.isHost"  @click="closeTheRoom()" class="start-button">部屋をクローズ</button>
+            <button v-if="players?.length >= 2 && yourPlayer.isHost"  @click="closeTheRoom()" class="start-button">Close room</button>
           </template>
         </div>
       </div>
@@ -68,8 +68,8 @@
               <div class="detailed-area">
                 <span>#{{ roomCode }}</span>
                 <span class="status-badge" style="background: #3581B8;">{{ onlineStatus }}</span>
-                <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >階段</span>
-                <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >革命</span>
+                <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >stairs</span>
+                <span class="status-badge" :class="{ 'undo-badge': !isRevolutionGoing }" >revolution</span>
                 <div style="display: flex; justify-content: space-around; width: 100%">
                   <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
                   <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa-solid fa-trash"></i>
@@ -98,9 +98,9 @@
                 </template>
 
                 <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer && onlineStatus == 'playing' && movingCards.length == 0 ? 'translate(-50%,-125%)' : 'translate(-50%,0%)'}">
-                  <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">パス</button>
-                  <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">キャンセル</button>
-                  <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">出す</button>
+                  <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">pass</button>
+                  <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">cancel</button>
+                  <button @click="submit()" :class="{ 'disable-button': !readyToSubmit }">submit</button>
                 </div>
 
               </div>
