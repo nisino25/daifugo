@@ -15,20 +15,21 @@
           <template v-if="roomOption && !roomCode">
             <h2>Type your name</h2>
               <div class="player-input">
-                <input type="text" v-model="username" placeholder="名前を入力">
+                <input type="text" v-model="username" placeholder="Enter your username">
               </div>
               <div class="player-input" v-if="roomOption === 'join'">
                 <input type="number" v-model="tempRoomcode" placeholder="Type room code">
               </div>
               <!-- <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button> -->
               <button @click="roomOption = null" class="back-button" style="background-color: crimson;">Back</button>
+              <button @click="username = getRandomName();" class="back-button" style="background-color: black;">Ger Random Name</button>
               <button v-if="readyToPlay && roomOption === 'create'" @click="createARoom()" class="start-button">Create</button>
               <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay && roomOption === 'join'" @click="joinARoom()" class="start-button">Join</button>
           </template>
 
           <template v-if="roomOption && roomCode">
             <h2>Welcome {{ username }}!</h2>
-            <p>Room code is: <strong>{{ roomCode }}</strong></p>
+            <p>Room code: <strong>{{ roomCode }}</strong></p>
             <hr>
             <template v-for="(player, index) in players" :key="index">
               <p>{{index +1}}.{{ player.name }}</p>
@@ -127,6 +128,7 @@
 
 import db from './firebase.js';
 
+
 import { randomNames } from './name.js';
 import PlayerInfo from './PlayerInfo.vue';
 import GameCard from './GameCard.vue';
@@ -166,8 +168,8 @@ export default {
       winner: null,
       onlineStatus: '',
 
-
-
+      processedAudioEvents: [],
+      publicAudioEvents: [],
     };
   },
   computed: {
@@ -740,16 +742,18 @@ export default {
         }
       });
     },
-    passToNext(){
+    async passToNext(){
       this.goToNextPlayer()
-      if(this.currentPlayer.name == this.lastSubmitBy) this.clearPublicPile()
+      if(this.currentPlayer.name == this.lastSubmitBy) await this.clearPublicPile()
       this.updatingData()
     },
-    clearPublicPile(){
+    async clearPublicPile(){
       this.isStairsGoing = false
       this.publicPile.forEach(card => {
         card.location = 'trash';
       });
+
+      await this.updateAudio('card-clear');
     },
     async submit(){
       this.lastSubmitBy = this.currentPlayer.name
@@ -861,6 +865,16 @@ export default {
         }
       }
 
+      // Filter cards located in 'publicArea' or 'trash'
+      const filteredCards = this.deck.filter(card => card.location === 'trash');
+
+      // Change the location to null for the filtered cards
+      filteredCards.forEach(card => {
+        card.location = null;
+      });
+
+      await this.updateAudio('card-submit')
+
       
 
       // check the gamewinner
@@ -874,7 +888,7 @@ export default {
       // 8giri
       if(tempArr[tempArr.length - 1].value == 8){
         await this.sleep(1000)
-        this.clearPublicPile()
+        await this.clearPublicPile()
         await this.updatingData()
         return
       }
@@ -920,6 +934,7 @@ export default {
     },
     async createARoom() {
       if (this.roomCode) return;
+      if(!this.username) return;
 
       let isUnique = false;
 
@@ -952,6 +967,7 @@ export default {
         deck: this.deck,
         isStairsGoing: this.isStairsGoing,
         isRevolutionGoing: this.isRevolutionGoing,
+        publicAudio: [],
       })
       
       // this.onlineStatus = 'waiting'
@@ -1025,21 +1041,22 @@ export default {
           
           this.isStairsGoing = doc.data().isStairsGoing
           this.isRevolutionGoing = doc.data().isRevolutionGoing
+
+          this.publicAudioEvents = doc.data().publicAudioEvents
+
+          this.publicAudioEvents.forEach((event) => {
+          if (!this.processedAudioEvents.includes(event.timeStamp)) {
+            this.playSound(event.fileName);
+            this.processedAudioEvents.push(event.timeStamp);
+          }
+        });
+
         }
-
-        
-        // if(!this.players.includes(this.username)){
-        //   this.joinARoom()
-        //   return 
-        // }
-
-        
-
-      
-        
       
       })
     },
+
+
 
     async closeTheRoom(){
 
@@ -1059,6 +1076,9 @@ export default {
 
       this.deck = []
 
+      this.publicAudioEvents = []
+      await this.updateAudio('card-shuffle')
+
       await this.initializeDeck()
 
       this.onlineStatus = 'distributing'
@@ -1071,6 +1091,8 @@ export default {
         currentPlayerIndex: this.currentPlayerIndex,
         isStairsGoing: this.isStairsGoing,
         isRevolutionGoing: this.isRevolutionGoing,
+        publicAudioEvents: this.publicAudioEvents,
+
       })
 
       
@@ -1094,6 +1116,23 @@ export default {
         isRevolutionGoing: this.isRevolutionGoing
       })
 
+    },
+
+    async updateAudio(fileName){
+      await this.playSound(fileName);
+
+      this.processedAudioEvents.push({timeStamp: Date.now(),fileName})
+      this.publicAudioEvents.push({timeStamp: Date.now(),fileName})
+
+      const ref = db.collection('rooms')
+      ref.doc(`${this.roomCode}`).update({
+        publicAudioEvents : this.processedAudioEvents
+      })
+    },
+
+    playSound(fileName) {
+      const audio = new Audio(require(`@/assets/sounds/${fileName}.wav`));
+      audio.play();
     },
 
     getMovingCardLocation(card){
@@ -1527,6 +1566,8 @@ export default {
     line-height: 1.25;
 
     font-weight: bold;
+
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
   }
 
   /* ---------------------------------------- */
