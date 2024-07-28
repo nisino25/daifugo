@@ -17,6 +17,13 @@
               <div class="player-input">
                 <input type="text" v-model="username" placeholder="Enter your username">
               </div>
+              <div class="avatar-container">
+                <div v-for="(avatar, index) in avatars" :key="index" @click="randomString = avatar.randomString" v-html="avatar.avatar"  :style="{ opacity:  randomString !== avatar.randomString ? '0.3' : '1' }"></div>
+
+                <div class="reload-button" @click="generateAvatars">
+                  <i class="fas fa-sync"></i>
+                </div>
+              </div>
               <div class="player-input" v-if="roomOption === 'join'">
                 <input type="number" v-model="tempRoomcode" placeholder="Type room code">
               </div>
@@ -170,6 +177,11 @@ export default {
 
       processedAudioEvents: [],
       publicAudioEvents: [],
+
+      pickedRandomString: null,
+      avatars: [],
+      randomString: null,
+
     };
   },
   computed: {
@@ -494,19 +506,10 @@ export default {
         const randomIndex = Math.floor(Math.random() * this.randomNames.length);
         randomName = this.randomNames[randomIndex];
       } while (this.players.some(player => player.name === randomName));
+
+      this.generateAvatars();
+
       return randomName;
-    },
-    addPlayer() {
-      const randomName = this.getRandomName();
-      const avatarData = this.generateAvatar();
-      console.log(avatarData.randomString)
-      this.players.push({
-        name: randomName,
-        randomString: avatarData.randomString 
-      });
-    },
-    removePlayer(index) {
-      this.players.splice(index, 1);
     },
     
     initializeDeck() {
@@ -882,17 +885,17 @@ export default {
       
 
 
-      // // Filter cards located in 'publicArea' or 'trash'
-      // const filteredCards = this.deck.filter(card => card.location === 'trash');
+      // Filter cards located in 'publicArea' or 'trash'
+      const filteredCards = this.deck.filter(card => card.location === 'trash');
 
-      // // Change the location to null for the filtered cards
-      // filteredCards.forEach(card => {
-      //   card.location = null;
-      // });
-
-      if(this.yourPlayerHands.length == 0) alert('You won the game!')
+      // Change the location to null for the filtered cards
+      filteredCards.forEach(card => {
+        card.location = null;
+      });
+      
       await this.goToNextPlayer()
       await this.updatingData()
+      if(this.yourPlayerHands.length == 0) await this.updateWinner()
 
 
 
@@ -949,8 +952,7 @@ export default {
       this.roomCode = this.tempRoomcode
       localStorage.setItem('latestRoomCode', this.roomCode)
       
-      const avatarData = this.generateAvatar();
-      this.players.push({name:this.username, isHost:true,randomString: avatarData.randomString})
+      this.players.push({name:this.username, isHost:true,randomString: this.randomString})
 
       localStorage.userName = this.userName
 
@@ -986,8 +988,7 @@ export default {
           this.players = doc.data().players;
           this.onlineStatus = doc.data().players;
 
-          const avatarData = this.generateAvatar();
-          if (!this.players.includes(this.username)) this.players.push({name:this.username, isHost:false,randomString:  avatarData.randomString});
+          if (!this.players.includes(this.username)) this.players.push({name:this.username, isHost:false,randomString:  this.randomString});
           this.roomCode = this.tempRoomcode
 
           await docRef.update({
@@ -1015,8 +1016,8 @@ export default {
         // this.winner = doc.data()?.winner
         this.players = doc.data()?.players
 
-        this.publicAudioEvents = doc.data().publicAudioEvents
-        if(this.publicAudioEvents.length > 0){
+        this.publicAudioEvents = doc.data()?.publicAudioEvents
+        if(this.publicAudioEvents?.length > 0){
 
           this.publicAudioEvents.forEach((event) => {
             if (!this.processedAudioEvents.find(e => e.timeStamp === event.timeStamp)) {
@@ -1134,9 +1135,14 @@ export default {
     },
 
     playSound(fileName) {
-      const audio = new Audio(require(`@/assets/sounds/${fileName}.wav`));
-      // console.log(audio);
-      audio.play();
+      try {
+        const audio = new Audio(require(`@/assets/sounds/${fileName}.wav`));
+        audio.play().catch(error => {
+          console.error('Error playing sound:', error);
+        });
+      } catch (error) {
+        console.error('Error loading sound file:', error);
+      }
     },
 
     getMovingCardLocation(card){
@@ -1185,9 +1191,28 @@ export default {
       return style
     },
 
+    generateAvatars() {
+      this.tempAvatarCode = null;
+
+      this.avatars = [1, 2, 3, 4, 5].map(() => {
+        const randomString = Math.random().toString();
+        return {
+          avatar: window.multiavatar(randomString),
+          randomString: randomString
+        };
+      });
+
+
+      // this.avatars = [1,2,3,4,5].map(() => window.multiavatar(Math.random().toString()));
+      // console.log(Math.random().toString())
+    },
+
   },
   async mounted(){
     console.clear()
+
+
+    this.generateAvatars()
 
     this.deck = []
     this.lastSubmitBy = null
@@ -1196,9 +1221,6 @@ export default {
     this.username = this.getRandomName();
 
     if(this.developingMode){
-      for (let i = 0; i < this.defaultNumber; i++) {
-        this.addPlayer();
-      }
       await this.sleep(500)
 
       this.goToGamePage()
@@ -1331,6 +1353,30 @@ export default {
   }
   .start-button {
     background-color: #13563B !important;
+  }
+
+  .avatar-container{
+    width: 95%;
+    margin: auto;
+    display: grid;
+
+    grid-template-columns: 28% 28% 28%;
+    justify-content: space-between;
+  }
+
+  .avatar-container div{
+    margin-bottom: 15px;
+  }
+
+  .avatar-container .reload-button{
+    font-size: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+
+    color: #01796f;
+
   }
   /* ---------------------------------------- */
 
