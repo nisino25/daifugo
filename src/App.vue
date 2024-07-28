@@ -68,8 +68,8 @@
 
               <div class="detailed-area">
                 <span>#{{ roomCode }}</span>
-                <span class="status-badge" style="background: #3581B8;">{{ onlineStatus }}</span>
-                <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >stairs</span>
+                <!-- <span class="status-badge" style="background: #3581B8;">{{ onlineStatus }}</span> -->
+                <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >Stairs</span>
                 <span class="status-badge" style="background: crimson; color: white;" :class="{ 'undo-badge': !isRevolutionGoing }" >Revolution</span>
                 <div style="display: flex; justify-content: space-around; width: 100%">
                   <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
@@ -749,6 +749,7 @@ export default {
     },
     async clearPublicPile(){
       this.isStairsGoing = false
+      await this.sleep(1);
       this.publicPile.forEach(card => {
         card.location = 'trash';
       });
@@ -777,18 +778,17 @@ export default {
 
       // Check if the yourPlayerPickedHands has more than one distinct value
       const distinctValues = new Set(this.yourPlayerPickedHands.map(card => card.value));
+
       if (this.yourPlayerPickedHands.length > 2 && distinctValues.size > 1 && !tempRevoultion) {
         this.isStairsGoing = true;
       }
 
       const tempArr = this.yourPlayerPickedHands
 
-      
       // Generate a random integer between minDeg and maxDeg
 
       const maxDeg = 2.5;
       let randomRotation = Math.floor(Math.random() * (maxDeg - -maxDeg + 1)) + (-1 * maxDeg);
-
 
       const vertRandom = Math.floor(Math.random() * (50 - 5 + 1)) + 5;
       const horzRandom = Math.floor(Math.random() * (65 - 5 + 1)) + 5;
@@ -800,9 +800,6 @@ export default {
         card.updatedAt = currentTime;
 
         card.rotation = 0
-
-
-        
 
         card.submitedBy = this.yourPlayer.name
 
@@ -818,7 +815,6 @@ export default {
         card.translateX = 0;
         card.zIndex = tempZindex;
         tempZindex++
-
 
 
         card.verticalPosition = vertRandom
@@ -865,17 +861,16 @@ export default {
         }
       }
 
-      // Filter cards located in 'publicArea' or 'trash'
-      const filteredCards = this.deck.filter(card => card.location === 'trash');
+      // 8giri
+      if(tempArr[tempArr.length - 1].value == 8){
+        await this.sleep(1000)
+        await this.clearPublicPile()
+        await this.updatingData()
+        return
+      }
 
-      // Change the location to null for the filtered cards
-      filteredCards.forEach(card => {
-        card.location = null;
-      });
 
       await this.updateAudio('card-submit')
-
-      
 
       // check the gamewinner
       if(this.yourPlayerHands.length == 0) {
@@ -884,14 +879,16 @@ export default {
       }
 
 
+      
 
-      // 8giri
-      if(tempArr[tempArr.length - 1].value == 8){
-        await this.sleep(1000)
-        await this.clearPublicPile()
-        await this.updatingData()
-        return
-      }
+
+      // // Filter cards located in 'publicArea' or 'trash'
+      // const filteredCards = this.deck.filter(card => card.location === 'trash');
+
+      // // Change the location to null for the filtered cards
+      // filteredCards.forEach(card => {
+      //   card.location = null;
+      // });
 
       if(this.yourPlayerHands.length == 0) alert('You won the game!')
       await this.goToNextPlayer()
@@ -968,10 +965,13 @@ export default {
         isStairsGoing: this.isStairsGoing,
         isRevolutionGoing: this.isRevolutionGoing,
         publicAudio: [],
+        publicAudioEvents: [],
       })
-      
+
+      // console.log('he');
+      this.publicAudioEvents = []
       // this.onlineStatus = 'waiting'
-      this.reciveTheData()
+      await this.reciveTheData()
     },
 
     async joinARoom() {
@@ -1015,6 +1015,17 @@ export default {
         // this.winner = doc.data()?.winner
         this.players = doc.data()?.players
 
+        this.publicAudioEvents = doc.data().publicAudioEvents
+        if(this.publicAudioEvents.length > 0){
+
+          this.publicAudioEvents.forEach((event) => {
+            if (!this.processedAudioEvents.find(e => e.timeStamp === event.timeStamp)) {
+              this.playSound(event.fileName);
+              this.processedAudioEvents.push(event);
+            }
+          });
+        }
+
         if(!this.winner && doc.data()?.winner){
           this.winner = doc.data()?.winner
           alert(`The game is over ${this.winner} won!`)
@@ -1042,14 +1053,7 @@ export default {
           this.isStairsGoing = doc.data().isStairsGoing
           this.isRevolutionGoing = doc.data().isRevolutionGoing
 
-          this.publicAudioEvents = doc.data().publicAudioEvents
-
-          this.publicAudioEvents.forEach((event) => {
-          if (!this.processedAudioEvents.includes(event.timeStamp)) {
-            this.playSound(event.fileName);
-            this.processedAudioEvents.push(event.timeStamp);
-          }
-        });
+          
 
         }
       
@@ -1122,7 +1126,6 @@ export default {
       await this.playSound(fileName);
 
       this.processedAudioEvents.push({timeStamp: Date.now(),fileName})
-      this.publicAudioEvents.push({timeStamp: Date.now(),fileName})
 
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
@@ -1132,6 +1135,7 @@ export default {
 
     playSound(fileName) {
       const audio = new Audio(require(`@/assets/sounds/${fileName}.wav`));
+      // console.log(audio);
       audio.play();
     },
 
