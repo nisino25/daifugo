@@ -507,7 +507,7 @@ export default {
         randomName = this.randomNames[randomIndex];
       } while (this.players.some(player => player.name === randomName));
 
-      this.generateAvatars();
+      // this.generateAvatars();
 
       return randomName;
     },
@@ -1027,7 +1027,7 @@ export default {
           });
         }
 
-        if(!this.winner && doc.data()?.winner){
+        if(!this.winner && doc.data()?.winner !== 'nobody'){
           this.winner = doc.data()?.winner
           alert(`The game is over ${this.winner} won!`)
         } 
@@ -1037,7 +1037,7 @@ export default {
           this.deck = doc.data().deck
 
           this.winner = doc.data().winner
-          if(this.winner) alert(`${this.winner} just won! the game is over`)
+          if(this.winner  && this.winner !== 'nobody') alert(`${this.winner} just won! the game is over`)
 
 
           this.lastSubmitBy = doc.data()?.lastSubmitBy
@@ -1075,7 +1075,7 @@ export default {
       this.currentPlayerIndex = 0;
       this.currentPage = 'game';
 
-      this.winner = null
+      this.winner = 'nobody'
       this.isStairsGoing = false
       this.isRevolutionGoing = false
 
