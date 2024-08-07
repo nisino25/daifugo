@@ -18,9 +18,9 @@
                 <input type="text" v-model="username" placeholder="Enter your username">
               </div>
               <div class="avatar-container">
-                <div v-for="(avatar, index) in avatars" :key="index" @click="randomString = avatar.randomString" v-html="avatar.avatar"  :style="{ opacity:  randomString !== avatar.randomString ? '0.3' : '1' }"></div>
+                <div v-for="(avatar, index) in avatars" :key="index" @click="randomString = avatar.randomString" v-html="avatar.avatar"  :style="{ opacity:  randomString !== avatar.randomString ? '0.6' : '1' }"></div>
 
-                <div class="reload-button" @click="generateAvatars">
+                <div class="reload-button" @click="generateAvatars('female')">
                   <i class="fas fa-sync"></i>
                 </div>
               </div>
@@ -39,7 +39,11 @@
             <p>Room code: <strong>{{ roomCode }}</strong></p>
             <hr>
             <template v-for="(player, index) in players" :key="index">
-              <p>{{index +1}}.{{ player.name }}</p>
+              <div class="list-name-container">
+                <span>{{index +1}}.</span>
+                <div v-html="regenerate(player.randomString)"></div>
+                <p>{{ player.name }}</p>
+              </div>
             </template>
             <button v-if="players?.length >= 2 && yourPlayer.isHost"  @click="closeTheRoom()" class="start-button">Close room</button>
           </template>
@@ -77,7 +81,9 @@
                 <span>#{{ roomCode }}</span>
                 <!-- <span class="status-badge" style="background: #3581B8;">{{ onlineStatus }}</span> -->
                 <span class="status-badge" :class="{ 'undo-badge': !isStairsGoing }" >Stairs</span>
-                <span class="status-badge" style="background: crimson; color: white;" :class="{ 'undo-badge': !isRevolutionGoing }" >Revolution</span>
+
+                <span class="status-badge" style="background: crimson; color: white;" :class="{ 'undo-badge': !isRevolutionGoing && !isTempRevolutionGoing }" >Revolution</span>
+
                 <div style="display: flex; justify-content: space-around; width: 100%">
                   <i @click="reloadPage()" class="fa fa-refresh" aria-hidden="true"></i>
                   <i v-if="yourPlayer.isHost" @click="resetGame()" class="fa-solid fa-trash"></i>
@@ -106,9 +112,10 @@
                 </template>
 
                 <div class="action-buttons-container" :style="{ transform: currentPlayer == yourPlayer && onlineStatus == 'playing' && movingCards.length == 0 ? 'translate(-50%,-125%)' : 'translate(-50%,0%)'}">
-                  <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0}">pass</button>
+                  <button @click="passToNext()" :class="{ 'disable-button': yourPlayerPickedHands.length > 0  || publicPile.length == 0 || isSevenGiveawayGoing}">pass</button>
                   <button @click="unpickAllCurrentPlayerCards()" :class="{ 'disable-button': yourPlayerPickedHands.length == 0 }">cancel</button>
-                  <button @click="submit()" style="background: #32de84" :class="{ 'disable-button': !readyToSubmit }">submit</button>
+                  <button v-if="!isSevenGiveawayGoing" @click="submit()" style="background: #32de84" :class="{ 'disable-button': !readyToSubmit }">submit</button>
+                  <button v-else @click="giveaway()" style="background: #32de84" :class="{ 'disable-button': yourPlayerPickedHands.length !== 1 }">Giveaway</button>
                 </div>
 
               </div>
@@ -163,7 +170,10 @@ export default {
       lastSubmitBy: null,
 
       isRevolutionGoing: false,
+      isTempRevolutionGoing: false,
       isStairsGoing: false,
+
+      isSevenGiveawayGoing: false,
 
       // -------
       roomOption: null,
@@ -172,11 +182,13 @@ export default {
       generalData: null,
 
       username: null,
-      winner: null,
       onlineStatus: '',
 
       processedAudioEvents: [],
       publicAudioEvents: [],
+
+      gameResults: [],
+      previousGameResults: [],
 
       pickedRandomString: null,
       avatars: [],
@@ -193,24 +205,6 @@ export default {
     },
     currentPlayer() {
       return this.players[this.currentPlayerIndex];
-    },
-    currentPlayerHands() {
-      return this.deck
-        .filter(card => card.location === this.currentPlayer?.name)
-        .sort((a, b) => {
-          const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
-          const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
-
-          // First, sort by value or revolutionValue
-          const valueComparison = valueA - valueB;
-          if (valueComparison !== 0) {
-            return valueComparison;
-          }
-
-          // Then, sort by suit
-          const suitOrder = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
-          return suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
-        });
     },
     drawPile() {
       return this.deck.filter(card => card.location === 'drawPile');
@@ -286,8 +280,8 @@ export default {
       return this.publicPile
         .filter(card => card.isPreviousCard)
         .sort((a, b) => {
-          const valueA = this.isRevolutionGoing ? a.revolutionValue : a.value;
-          const valueB = this.isRevolutionGoing ? b.revolutionValue : b.value;
+          const valueA = this.isRevolutionGoing || this.isTempRevolutionGoing ? a.revolutionValue : a.value;
+          const valueB = this.isRevolutionGoing || this.isTempRevolutionGoing ? b.revolutionValue : b.value;
           return valueA - valueB;
         });
     },
@@ -465,8 +459,8 @@ export default {
       if (this.yourPlayerPickedHands.length < this.previousCards.length && !wasPreviousRevolution) return false;
 
       // Check if the current cards' value is higher (or lower in revolution) than the previous cards
-      const previousValue = this.isRevolutionGoing ? this.previousCards[0].revolutionValue : this.previousCards[0].value;
-      const currentValue = this.isRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue : this.yourPlayerPickedHands[0].value;
+      const previousValue = this.isRevolutionGoing || this.isTempRevolutionGoing ? this.previousCards[0].revolutionValue : this.previousCards[0].value;
+      const currentValue = this.isRevolutionGoing || this.isTempRevolutionGoing ? this.yourPlayerPickedHands[0].revolutionValue : this.yourPlayerPickedHands[0].value;
 
       if (currentValue <= previousValue) {
         return false;
@@ -602,11 +596,32 @@ export default {
       return after.concat(before);
     },
 
-    goToNextPlayer() {
+    async goToNextPlayer() {
         // Move to the next player, wrapping around if necessary
         this.currentPlayer.isRevealing = false
         this.unpickAllCurrentPlayerCards();
         this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+
+        let activePlayerCount = 0
+        for(let player of this.players){
+          if(this.playerHands(player.name).length !== 0) activePlayerCount++
+        }
+
+
+        if(activePlayerCount == 1) {
+          console.log('the game is over');
+          this.currentPlayerIndex = this.players.length + 1
+          this.updateResult()
+          return
+        }
+
+
+        if(this.playerHands(this.currentPlayer.name).length == 0){
+          if(this.currentPlayer.name == this.lastSubmitBy) await this.clearPublicPile()
+          this.goToNextPlayer()
+        }
+
+
     },
 
     
@@ -752,6 +767,7 @@ export default {
     },
     async clearPublicPile(){
       this.isStairsGoing = false
+      this.isTempRevolutionGoing = false
       await this.sleep(1);
       this.publicPile.forEach(card => {
         card.location = 'trash';
@@ -865,9 +881,19 @@ export default {
       }
 
       // 8giri
-      if(tempArr[tempArr.length - 1].value == 8){
+      if(tempArr[tempArr.length - 1].value == 8 && this.yourPlayerHands.length !== 0){
         await this.sleep(1000)
         await this.clearPublicPile()
+        await this.updatingData()
+        return
+      }
+
+      // 11 back
+      if(tempArr[tempArr.length - 1].value == 11) this.isTempRevolutionGoing = true
+
+      // 7 giveaway
+      if(tempArr[tempArr.length - 1].value == 7 && this.yourPlayerHands.length !== 0) {
+        this.isSevenGiveawayGoing = true
         await this.updatingData()
         return
       }
@@ -876,10 +902,7 @@ export default {
       await this.updateAudio('card-submit')
 
       // check the gamewinner
-      if(this.yourPlayerHands.length == 0) {
-        this.winner = this.yourPlayer.name
-        this.onlineStatus = 'gameOver'
-      }
+      if(this.yourPlayerHands.length == 0) await this.updateResult()
 
 
       
@@ -895,10 +918,20 @@ export default {
       
       await this.goToNextPlayer()
       await this.updatingData()
-      if(this.yourPlayerHands.length == 0) await this.updateWinner()
 
 
 
+    },
+    async giveaway(){
+      this.isSevenGiveawayGoing = false
+
+      let tempCard = this.yourPlayerPickedHands[this.yourPlayerPickedHands.length - 1]
+      await this.goToNextPlayer()
+      tempCard.location = this.currentPlayer.name
+      
+      if(this.yourPlayerHands.length == 0) await this.updateResult()
+
+      this.updatingData()
     },
     getPileCardLocation(card){
       if(card.location == 'trash'){
@@ -959,7 +992,6 @@ export default {
       // console.log('sending data')
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).set({
-        winner: this.winner,
         games: JSON.stringify([{ gameStatus: 'waiting' }]),
         players: this.players,
         onlineStatus: 'waiting',
@@ -1013,7 +1045,6 @@ export default {
         // joining room and wait until it closes
         // if(this.currentPage == 'before'){
         this.onlineStatus = doc.data()?.onlineStatus
-        // this.winner = doc.data()?.winner
         this.players = doc.data()?.players
 
         this.publicAudioEvents = doc.data()?.publicAudioEvents
@@ -1027,17 +1058,11 @@ export default {
           });
         }
 
-        if(!this.winner && doc.data()?.winner !== 'nobody'){
-          this.winner = doc.data()?.winner
-          alert(`The game is over ${this.winner} won!`)
-        } 
+        
         
 
         if(this.onlineStatus == 'playing' || this.onlineStatus == 'distributing') {
           this.deck = doc.data().deck
-
-          this.winner = doc.data().winner
-          if(this.winner  && this.winner !== 'nobody') alert(`${this.winner} just won! the game is over`)
 
 
           this.lastSubmitBy = doc.data()?.lastSubmitBy
@@ -1053,6 +1078,9 @@ export default {
           
           this.isStairsGoing = doc.data().isStairsGoing
           this.isRevolutionGoing = doc.data().isRevolutionGoing
+          this.isTempRevolutionGoing = doc.data().isTempRevolutionGoing
+
+          this.gameResults = doc.data().gameResults
 
           
 
@@ -1069,33 +1097,34 @@ export default {
 
       this.shuffleArray(this.players)
 
-      // Logic to start the game
-
-      // Reset the current player index
       this.currentPlayerIndex = 0;
       this.currentPage = 'game';
 
-      this.winner = 'nobody'
       this.isStairsGoing = false
       this.isRevolutionGoing = false
-
-      this.deck = []
-
+      this.isTempRevolutionGoing = false
+      
       this.publicAudioEvents = []
       await this.updateAudio('card-shuffle')
-
+      
+      this.deck = []
       await this.initializeDeck()
+
+      this.previousGameResults = this.gameResults
+      this.gameResults = []
 
       this.onlineStatus = 'distributing'
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
-        winner: this.winner,
+        gameResults: this.gameResults,
+        previousGameResults: this.previousGameResults,
         deck: this.deck,
         players: this.players,
         onlineStatus: this.onlineStatus,
         currentPlayerIndex: this.currentPlayerIndex,
         isStairsGoing: this.isStairsGoing,
         isRevolutionGoing: this.isRevolutionGoing,
+        isTempRevolutionGoing: this.isTempRevolutionGoing,
         publicAudioEvents: this.publicAudioEvents,
 
       })
@@ -1106,21 +1135,24 @@ export default {
 
     },
     updatingData(){
-      // if(!this.yourPlayer.isHost && this.onlineStatus == 'distributing') {
-      //   console.log(this.onlineStatus + ' ' + this.yourPlayer.name)
-      //   return 
-      // } 
       const ref = db.collection('rooms')
       ref.doc(`${this.roomCode}`).update({
         lastSubmitBy: this.lastSubmitBy,
         deck: this.deck,
         onlineStatus: this.onlineStatus,
-        winner: this.winner,
         currentPlayerIndex: this.currentPlayerIndex,
         isStairsGoing: this.isStairsGoing,
-        isRevolutionGoing: this.isRevolutionGoing
+        isRevolutionGoing: this.isRevolutionGoing,
+        isTempRevolutionGoing: this.isTempRevolutionGoing,
       })
+    },
 
+    updateResult(){
+      const ref = db.collection('rooms')
+      this.gameResults.push(this.yourPlayer.name)
+      ref.doc(`${this.roomCode}`).update({
+        gameResults: this.gameResults
+      })
     },
 
     async updateAudio(fileName){
@@ -1194,17 +1226,18 @@ export default {
     generateAvatars() {
       this.tempAvatarCode = null;
 
-      this.avatars = [1, 2, 3, 4, 5].map(() => {
+      this.avatars = [1, 2, 3, 4, 5,6,7,8,9].map(() => {
         const randomString = Math.random().toString();
         return {
           avatar: window.multiavatar(randomString),
           randomString: randomString
         };
       });
+    },
 
 
-      // this.avatars = [1,2,3,4,5].map(() => window.multiavatar(Math.random().toString()));
-      // console.log(Math.random().toString())
+    regenerate(randomString) {
+      return window.multiavatar(randomString);
     },
 
   },
@@ -1360,7 +1393,7 @@ export default {
     margin: auto;
     display: grid;
 
-    grid-template-columns: 28% 28% 28%;
+    grid-template-columns: repeat(5, 18%);
     justify-content: space-between;
   }
 
@@ -1369,7 +1402,7 @@ export default {
   }
 
   .avatar-container .reload-button{
-    font-size: 50px;
+    font-size: 40px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1377,6 +1410,23 @@ export default {
 
     color: #01796f;
 
+  }
+
+  .list-name-container{
+    display: flex;
+    align-items:center;
+  }
+
+  .list-name-container{
+    display: flex;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  .list-name-container svg{
+    width: 60px;
+    height: 60px;
   }
   /* ---------------------------------------- */
 
@@ -1508,8 +1558,9 @@ export default {
     width: 100%; /* Adjust width to fit your card */
     aspect-ratio: 1;
     /* border: 1px solid black; */
-    background: url('./assets/suits.jpg') no-repeat;
-    background-size: 215% 215%; /* The full image size (4 suits in a row) */
+    /* background: url('./assets/suits.jpg') no-repeat; */
+    background: url('./assets/suits.png') no-repeat;
+    background-size: 210% 210%; /* The full image size (4 suits in a row) */
   }
   .suit-Hearts {
     background-position: 0% 0%;
